@@ -1,0 +1,37 @@
+{
+  "ranAt": "2026-10-17T10:43:09.972Z",
+  "aiMode": "demo",
+  "model": null,
+  "deterministic": {
+    "demoQuestions": 14,
+    "demoValidationPassRate": 100,
+    "demoNumericalRecomputedRate": 100,
+    "templateAttempts": 720,
+    "templateProducedRate": 100,
+    "templateValidRate": 100,
+    "templateDistractorLabelledRate": 100,
+    "templateExactDuplicatePairRate": 2.3,
+    "followUpNearCopyOfMissedRate": 0,
+    "perCell": {
+      "momentum/easy": 40,
+      "momentum/medium": 40,
+      "momentum/hard": 40,
+      "conservation/easy": 40,
+      "conservation/medium": 40,
+      "conservation/hard": 40,
+      "elastic/easy": 40,
+      "elastic/medium": 40,
+      "elastic/hard": 40,
+      "inelastic/easy": 40,
+      "inelastic/medium": 40,
+      "inelastic/hard": 40,
+      "restitution/easy": 40,
+      "restitution/medium": 40,
+      "restitution/hard": 40,
+      "problems/easy": 40,
+      "problems/medium": 40,
+      "problems/hard": 40
+    }
+  },
+  "ai": "SKIPPED: no Gemini credentials configured (set GOOGLE_CLOUD_PROJECT + GOOGLE_GENAI_USE_VERTEXAI=true, or GEMINI_API_KEY)"
+}

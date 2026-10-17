@@ -1,0 +1,46 @@
+{
+  "description": "Representative chapter excerpts with the concepts a good extraction must find. Used by scripts/eval.ts.",
+  "chapters": [
+    {
+      "id": "phy-collisions",
+      "subject": "Physics",
+      "grade": "11",
+      "title": "Collisions",
+      "pages": [
+        { "ref": "Page 1", "transcript": "COLLISIONS\nMomentum $p = mv$ (vector, unit kg m/s). Newton 2nd law: $F = \\Delta p / \\Delta t$.\nLaw of conservation of momentum: if no external force, total momentum before = total momentum after. $m_1u_1 + m_2u_2 = m_1v_1 + m_2v_2$.\nEg. gun recoil: $m_g v_g = -m_b v_b$." },
+        { "ref": "Page 2", "transcript": "Elastic collision: momentum AND KE conserved. Equal masses -> exchange velocities.\nInelastic: only momentum conserved, KE lost as heat/sound. Perfectly inelastic: bodies stick, $v = (m_1u_1+m_2u_2)/(m_1+m_2)$.\nCoefficient of restitution $e = (v_2 - v_1)/(u_1 - u_2)$, $0 \\le e \\le 1$. Ball dropped: $e = \\sqrt{h_1/h_0}$." }
+      ],
+      "expectedConcepts": [["momentum"], ["conservation"], ["elastic"], ["inelastic"], ["restitution"]]
+    },
+    {
+      "id": "phy-kinematics",
+      "subject": "Physics",
+      "grade": "11",
+      "title": "Motion in a straight line",
+      "pages": [
+        { "ref": "Page 1", "transcript": "Displacement vs distance: displacement is a vector (shortest path), distance scalar.\nVelocity $v = \\Delta x/\\Delta t$; acceleration $a = \\Delta v / \\Delta t$.\nEquations of motion (const a): $v = u + at$, $s = ut + \\tfrac12 at^2$, $v^2 = u^2 + 2as$.\nFree fall: $a = g = 9.8\\ m/s^2$ downwards. Slope of x-t graph = velocity, slope of v-t graph = acceleration, area under v-t = displacement." }
+      ],
+      "expectedConcepts": [["displacement", "distance"], ["velocity"], ["acceleration"], ["equations of motion", "kinematic equations", "constant acceleration"], ["free fall", "gravity"], ["graph"]]
+    },
+    {
+      "id": "chem-mole",
+      "subject": "Chemistry",
+      "grade": "11",
+      "title": "Mole concept",
+      "pages": [
+        { "ref": "Page 1", "transcript": "1 mole = $6.022 \\times 10^{23}$ particles (Avogadro number $N_A$).\nMolar mass = mass of 1 mol in g/mol (numerically = molecular mass in u). Number of moles $n = m/M$.\nAt STP 1 mol gas = 22.4 L. Empirical formula = simplest whole number ratio; molecular formula = n x empirical.\nLimiting reagent: reactant used up first, decides amount of product." }
+      ],
+      "expectedConcepts": [["mole", "avogadro"], ["molar mass"], ["stp", "molar volume", "22.4"], ["empirical formula"], ["limiting reagent"]]
+    },
+    {
+      "id": "bio-cell",
+      "subject": "Biology",
+      "grade": "11",
+      "title": "Cell: the unit of life",
+      "pages": [
+        { "ref": "Page 1", "transcript": "Cell theory (Schleiden, Schwann, Virchow - omnis cellula e cellula).\nProkaryotic: no nuclear membrane, 70S ribosomes, e.g. bacteria. Eukaryotic: membrane bound nucleus and organelles, 80S ribosomes.\nMitochondria = powerhouse, site of aerobic respiration, has own DNA. Chloroplast: photosynthesis, in plants. Cell membrane: fluid mosaic model (Singer & Nicolson)." }
+      ],
+      "expectedConcepts": [["cell theory"], ["prokaryot"], ["eukaryot"], ["mitochondri"], ["chloroplast"], ["membrane", "fluid mosaic"]]
+    }
+  ]
+}

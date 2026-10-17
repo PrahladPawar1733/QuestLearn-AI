@@ -1,26 +1,372 @@
 @import "tailwindcss";
+@import "katex/dist/katex.min.css";
+
+/* ==================================================================
+   QuestLearn design tokens, Apple-style.
+   Semantic system colors that adapt to light and dark, grouped
+   backgrounds, translucent materials, and per-size type styles.
+   ================================================================== */
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  color-scheme: light dark;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* --- Light (default) --- */
+  --bg: #f2f2f7; /* systemGroupedBackground */
+  --surface: #ffffff; /* secondarySystemGroupedBackground: cards */
+  --surface-2: #f2f2f7; /* tertiary: wells inside cards */
+  --surface-3: #e5e5ea; /* systemGray5 */
+  --bg-2: #f2f2f7;
+
+  --text: #000000; /* label */
+  --muted: rgb(60 60 67 / 0.62); /* secondaryLabel (slightly raised for legibility) */
+  --faint: rgb(60 60 67 / 0.45); /* tertiaryLabel, raised: non-essential text only */
+  --line: rgb(60 60 67 / 0.18); /* separator */
+  --line-strong: #c6c6c8; /* opaqueSeparator */
+
+  --fill: rgb(120 120 128 / 0.2); /* systemFill */
+  --fill-2: rgb(120 120 128 / 0.16);
+  --fill-3: rgb(118 118 128 / 0.12);
+  --fill-4: rgb(116 116 128 / 0.08);
+
+  --tint: #5856d6; /* systemIndigo: app accent */
+  --tint-pressed: #4746b8;
+  --on-tint: #ffffff;
+  --blue: #007aff;
+  --cyan: #0a96c8; /* systemCyan, darkened for text contrast on white */
+  --teal: #30b0c7;
+  --green: #248a3d; /* accessible green for text */
+  --green-fill: #34c759;
+  --red: #d70015;
+  --red-fill: #ff3b30;
+  --orange: #c93400;
+  --orange-fill: #ff9500;
+  --yellow: #ffcc00;
+  --purple: #af52de;
+  --pink: #ff2d55;
+  /* Chart series 2: validated with series 1 (tint) in both modes (dataviz palette check). */
+  --chart-2: #26a0b4;
+
+  --material-chrome: rgb(249 249 249 / 0.78);
+  --material-thick: rgb(255 255 255 / 0.88);
+  --material-thin: rgb(255 255 255 / 0.6);
+  --scrim: rgb(0 0 0 / 0.28);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px rgb(0 0 0 / 0.04);
+  --shadow-float: 0 1px 3px rgb(0 0 0 / 0.08), 0 12px 40px rgb(0 0 0 / 0.14);
+  --highlight-edge: rgb(255 255 255 / 0.6);
+
+  --radius: 20px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg: #000000;
+    --surface: #1c1c1e;
+    --surface-2: #2c2c2e;
+    --surface-3: #3a3a3c;
+    --bg-2: #2c2c2e;
+
+    --text: #ffffff;
+    --muted: rgb(235 235 245 / 0.64);
+    --faint: rgb(235 235 245 / 0.42);
+    --line: rgb(84 84 88 / 0.6);
+    --line-strong: #38383a;
+
+    --fill: rgb(120 120 128 / 0.36);
+    --fill-2: rgb(120 120 128 / 0.32);
+    --fill-3: rgb(118 118 128 / 0.24);
+    --fill-4: rgb(118 118 128 / 0.18);
+
+    --tint: #7d7aff; /* systemIndigo (dark), lifted for contrast on #1c1c1e */
+    --tint-pressed: #6966f0;
+    --blue: #0a84ff;
+    --cyan: #64d2ff;
+    --teal: #40cbe0;
+    --green: #30d158;
+    --green-fill: #30d158;
+    --red: #ff453a;
+    --red-fill: #ff453a;
+    --orange: #ff9f0a;
+    --orange-fill: #ff9f0a;
+    --yellow: #ffd60a;
+    --purple: #bf5af2;
+    --pink: #ff375f;
+
+    --material-chrome: rgb(22 22 24 / 0.72);
+    --material-thick: rgb(28 28 30 / 0.9);
+    --material-thin: rgb(44 44 46 / 0.6);
+    --scrim: rgb(0 0 0 / 0.5);
+    --shadow-card: none;
+    --shadow-float: 0 12px 40px rgb(0 0 0 / 0.5);
+    --highlight-edge: rgb(255 255 255 / 0.08);
   }
 }
 
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-2: var(--bg-2);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--text);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-fill: var(--fill);
+  --color-fill-2: var(--fill-2);
+  --color-fill-3: var(--fill-3);
+  --color-fill-4: var(--fill-4);
+  --color-tint: var(--tint);
+  --color-on-tint: var(--on-tint);
+  /* legacy aliases: "primary" is the app tint */
+  --color-primary: var(--tint);
+  --color-primary-strong: var(--tint-pressed);
+  --color-blue: var(--blue);
+  --color-cyan: var(--cyan);
+  --color-teal: var(--teal);
+  --color-success: var(--green);
+  --color-success-fill: var(--green-fill);
+  --color-success-strong: var(--green-fill);
+  --color-danger: var(--red);
+  --color-danger-fill: var(--red-fill);
+  --color-amber: var(--orange);
+  --color-amber-fill: var(--orange-fill);
+  --color-yellow: var(--yellow);
+  --color-purple: var(--purple);
+  --color-pink: var(--pink);
+  --font-sans: var(--font-system);
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --radius-card: var(--radius);
+}
+
+:root {
+  --font-system: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-rounded: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+html {
+  background: var(--bg);
+  /* Respect the user's text size: everything below is in rem. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-system);
+  font-size: 1rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-optical-sizing: auto;
+  /* Remove the legacy tap delay; feedback must be instant. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--tint) 30%, transparent);
+}
+
+:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--tint) 70%, transparent);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+/* ------------------------------------------------------------------
+   Type styles (Apple text styles; tracking is size-specific:
+   negative for large text, ~0 for body, slightly positive for small)
+   ------------------------------------------------------------------ */
+@utility t-display {
+  font-size: clamp(2.5rem, 1.6rem + 3.6vw, 4.5rem);
+  line-height: 1.04;
+  letter-spacing: -0.035em;
+  font-weight: 700;
+}
+@utility t-large-title {
+  font-size: 2.125rem;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  font-weight: 700;
+}
+@utility t-title1 {
+  font-size: 1.75rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+@utility t-title2 {
+  font-size: 1.375rem;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  font-weight: 700;
+}
+@utility t-title3 {
+  font-size: 1.25rem;
+  line-height: 1.28;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+@utility t-headline {
+  font-size: 1.0625rem;
+  line-height: 1.3;
+  letter-spacing: -0.005em;
+  font-weight: 600;
+}
+@utility t-body {
+  font-size: 1.0625rem;
+  line-height: 1.47;
+  letter-spacing: -0.003em;
+}
+@utility t-callout {
+  font-size: 1rem;
+  line-height: 1.38;
+  letter-spacing: 0;
+}
+@utility t-subhead {
+  font-size: 0.9375rem;
+  line-height: 1.34;
+  letter-spacing: 0;
+}
+@utility t-footnote {
+  font-size: 0.8125rem;
+  line-height: 1.38;
+  letter-spacing: 0.005em;
+}
+@utility t-caption {
+  font-size: 0.75rem;
+  line-height: 1.33;
+  letter-spacing: 0.01em;
+}
+@utility t-eyebrow {
+  font-size: 0.75rem;
+  line-height: 1.33;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* Headings default to tight tracking; game numbers use SF Rounded. */
+.font-display {
+  font-family: var(--font-system);
+  letter-spacing: -0.02em;
+}
+.font-rounded {
+  font-family: var(--font-rounded);
+}
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------
+   Surfaces & materials
+   ------------------------------------------------------------------ */
+
+/* Grouped card: no border, depth from background contrast (+ soft shadow in light). */
+.surface {
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+/* Translucent floating chrome (nav bars, status bars). Content scrolls underneath. */
+.material-chrome {
+  background: var(--material-chrome);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* Heavier material for sheets and dialogs (bigger surface, thicker blur, deeper shadow). */
+.material-thick {
+  background: var(--material-thick);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  backdrop-filter: blur(40px) saturate(180%);
+  box-shadow: var(--shadow-float), inset 0 1px 0 var(--highlight-edge);
+}
+
+/* Scroll-edge effect instead of a hard divider under floating chrome. */
+.scroll-edge::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 100%;
+  height: 16px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--bg) 70%, transparent), transparent);
+}
+
+/* Instant press feedback (pointer-down), Apple-style. */
+.pressable {
+  transition: transform 120ms ease-out, background-color 150ms ease, box-shadow 150ms ease, opacity 150ms ease;
+}
+.pressable:active:not(:disabled) {
+  transform: scale(0.97);
+  transition-duration: 60ms;
+}
+
+.katex {
+  font-size: 1.05em;
+}
+.katex-display {
+  margin: 0.4em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* Gentle decorative bob for game scenes (never gesture-driven). */
+@keyframes ql-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+.ql-bob {
+  animation: ql-bob 3s ease-in-out infinite;
+}
+
+/* ------------------------------------------------------------------
+   Accessibility preferences
+   ------------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+  .pressable:active:not(:disabled) {
+    transform: none;
+    opacity: 0.7;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .material-chrome,
+  .material-thick {
+    background: var(--surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --line: var(--text);
+    --muted: var(--text);
+    --faint: var(--text);
+  }
+  .surface,
+  .material-chrome,
+  .material-thick {
+    background: var(--surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: none;
+    outline: 1px solid var(--text);
+  }
 }
