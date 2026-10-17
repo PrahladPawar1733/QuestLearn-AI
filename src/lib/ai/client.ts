@@ -30,7 +30,16 @@ export function toGeminiSchema(schema: z.ZodType): unknown {
     if (node && typeof node === "object") {
       const out: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(node)) {
-        if (k === "$schema" || k === "default" || k === "additionalProperties" || k === "pattern") continue;
+        // `maxItems` is rejected by Vertex's responseJsonSchema on nested
+        // object arrays — it returns a bare 400 INVALID_ARGUMENT with no
+        // indication of which keyword is at fault. Bisecting the real
+        // question schema against the API showed removing ONLY `maxItems`
+        // makes it valid (minItems, enum and anyOf are all accepted).
+        //
+        // Dropping it is safe: the bound still exists in the zod schema, so
+        // an over-long response is caught by `safeParse` and fed back through
+        // the repair retry. The provider simply is not told the ceiling.
+        if (k === "$schema" || k === "default" || k === "additionalProperties" || k === "pattern" || k === "maxItems") continue;
         out[k] = strip(v);
       }
       return out;
@@ -59,9 +68,42 @@ interface GenerateOpts<T extends z.ZodType> {
   retries?: number;
 }
 
+/**
+ * Pull quota details out of a provider error.
+ *
+ * Google returns two very different things with the same 429: a short
+ * per-minute burst limit, and a per-DAY project quota that will not reset for
+ * hours. Treating them alike means we retry a daily exhaustion twice for
+ * nothing and then tell the student to "try again in a minute", which is
+ * simply false.
+ */
+function quotaInfo(e: unknown): { perDay: boolean; retrySeconds: number | null } {
+  let raw = "";
+  try {
+    raw = typeof (e as Error)?.message === "string" ? (e as Error).message : JSON.stringify(e ?? "");
+  } catch {
+    raw = String(e);
+  }
+  const perDay = /PerDay|per_day|requests per day|free_tier_requests/i.test(raw);
+  const m = raw.match(/"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/);
+  return { perDay, retrySeconds: m ? Math.round(Number(m[1])) : null };
+}
+
+/** "about 11 hours" / "about 4 minutes" — vague on purpose; the exact second is noise. */
+function humanDelay(seconds: number): string {
+  if (seconds < 90) return `about ${Math.max(1, Math.round(seconds))} seconds`;
+  if (seconds < 5400) return `about ${Math.round(seconds / 60)} minutes`;
+  return `about ${Math.round(seconds / 3600)} hours`;
+}
+
 function isTransient(e: unknown) {
   const msg = String((e as Error)?.message ?? e).toLowerCase();
   const status = (e as { status?: number })?.status;
+  // A daily quota will not recover inside a retry loop, so do not spend one.
+  if (status === 429 || msg.includes("resource_exhausted")) {
+    const q = quotaInfo(e);
+    if (q.perDay || (q.retrySeconds ?? 0) > 300) return false;
+  }
   return (
     status === 429 ||
     (status !== undefined && status >= 500) ||
@@ -77,8 +119,20 @@ function mapProviderError(e: unknown): AppError {
   if (e instanceof AppError) return e;
   const status = (e as { status?: number })?.status;
   const msg = String((e as Error)?.message ?? e).toLowerCase();
-  if (status === 429 || msg.includes("resource_exhausted"))
+  if (status === 429 || msg.includes("resource_exhausted")) {
+    const q = quotaInfo(e);
+    if (q.perDay || (q.retrySeconds ?? 0) > 300) {
+      const when = q.retrySeconds ? ` It resets in ${humanDelay(q.retrySeconds)}.` : "";
+      return new AppError(
+        "AI_QUOTA_EXHAUSTED",
+        `This project's daily AI quota is used up.${when} Your upload is saved — you can retry once it resets, or switch to a model that still has quota.`,
+        429,
+        // Not retryable: the retry loop cannot outlast a daily window.
+        false,
+      );
+    }
     return new AppError("AI_RATE_LIMITED", "The AI service is busy right now. Please try again in a minute.", 429, true);
+  }
   if (msg.includes("timeout") || msg.includes("aborted") || msg.includes("deadline"))
     return new AppError("AI_TIMEOUT", "The AI took too long to respond. Your work is saved, so you can retry.", 504, true);
   if (status === 404) return new AppError("AI_MODEL_NOT_FOUND", "The configured AI model isn't available in this project.", 502, false);
@@ -105,7 +159,21 @@ export async function generateJson<T extends z.ZodType>(opts: GenerateOpts<T>): 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? config.aiTimeoutMs);
     try {
-      const parts: Part[] = [...(opts.parts as Part[])];
+      // Vertex rejects an empty text part with a bare 400 INVALID_ARGUMENT,
+      // which is exactly what happens when an earlier stage (transcription)
+      // failed and left us with nothing to work from. Drop empties and fail
+      // with a message that names the real problem instead.
+      const parts: Part[] = (opts.parts as Part[]).filter(
+        (p) => !("text" in p) || (typeof p.text === "string" && p.text.trim().length > 0),
+      );
+      if (parts.length === 0) {
+        throw new AppError(
+          "AI_NO_INPUT",
+          "There was no readable content to work from. Re-run the reading step, or retake the unclear pages.",
+          422,
+          false,
+        );
+      }
       if (feedback) parts.push({ text: `Your previous response was rejected by validation: ${feedback}\nReturn corrected JSON only.` });
       const res = await ai.models.generateContent({
         model,
@@ -156,6 +224,18 @@ export async function generateJson<T extends z.ZodType>(opts: GenerateOpts<T>): 
         transientRetries++;
         await new Promise((r) => setTimeout(r, 800 * 2 ** (transientRetries - 1) + Math.random() * 300));
         continue;
+      }
+      const status = (e as { status?: number })?.status;
+      if (status === 400) {
+        // A 400 is our fault, not the model's. Record the shape of what we
+        // sent so the cause is visible without a live reproduction.
+        console.error("[ai] 400 from provider", {
+          operation: opts.operation,
+          model,
+          partCount: (opts.parts as Part[]).length,
+          textChars: (opts.parts as Part[]).reduce((n, p) => n + ("text" in p && typeof p.text === "string" ? p.text.length : 0), 0),
+          schemaBytes: JSON.stringify(toGeminiSchema(opts.schema)).length,
+        });
       }
       const appErr =
         e instanceof SchemaFailure

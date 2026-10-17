@@ -1,7 +1,7 @@
 "use client";
 
-import { Check, ChevronRight, Loader2, Play, RotateCcw } from "lucide-react";
-import { motion } from "motion/react";
+import { BookOpen, Check, ChevronDown, ChevronRight, Loader2, Play, RotateCcw } from "lucide-react";
+
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,10 @@ import { api, ApiError } from "@/lib/api-client";
 import { cn } from "@/lib/cn";
 import { haptic } from "@/lib/haptics";
 import type { SessionView } from "@/lib/services/play";
-import type { ContentOrigin, GameWorld } from "@/lib/types";
+import type { ContentOrigin, ExtractedContent, GameWorld } from "@/lib/types";
+import { ChapterBrief } from "@/components/learn/chapter-brief";
+import { GamePreview } from "@/components/games/game-preview";
+import { playableGames } from "@/components/games/registry";
 import { WORLDS, worldMeta } from "./types";
 import { WorldPreview } from "./world-preview";
 
@@ -21,11 +24,13 @@ interface Props {
   active: { id: string; answered: number; world: GameWorld } | null;
   completedRuns: number;
   defaultWorld?: GameWorld;
+  /** The chapter brief extracted from the student's own material. */
+  extracted: ExtractedContent | null;
 }
 
-export function QuestLobby({ quest, concepts, active, completedRuns, defaultWorld }: Props) {
+export function QuestLobby({ quest, concepts, active, completedRuns, defaultWorld, extracted }: Props) {
   const router = useRouter();
-  const [world, setWorld] = useState<GameWorld>(defaultWorld && WORLDS.some((w) => w.id === defaultWorld) ? defaultWorld : "classic");
+  const [world, setWorld] = useState<GameWorld>(defaultWorld ?? "classic");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,18 +79,19 @@ export function QuestLobby({ quest, concepts, active, completedRuns, defaultWorl
         )}
       </header>
 
-      <section aria-labelledby="world-heading">
+      <section aria-labelledby="games-heading">
         <div className="mb-3 px-1">
-          <h2 id="world-heading" className="t-title2 text-ink">
-            Choose a world
+          <h2 id="games-heading" className="t-title2 text-ink">
+            How do you want to learn this?
           </h2>
-          <p className="t-subhead text-muted">Same questions and scoring in every world. Pick the one you enjoy.</p>
+          <p className="t-subhead text-muted">
+            Same questions, same marking, same mastery either way. Start with the questions — add a game when you want one.
+          </p>
         </div>
-        {/* Phone: native scroll-snap carousel (native momentum). Desktop: grid. */}
         <div
           role="radiogroup"
-          aria-labelledby="world-heading"
-          className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-3"
+          aria-labelledby="games-heading"
+          className="grid gap-3 sm:grid-cols-2"
         >
           {WORLDS.map((w) => {
             const on = world === w.id;
@@ -100,48 +106,106 @@ export function QuestLobby({ quest, concepts, active, completedRuns, defaultWorl
                   haptic("selection");
                 }}
                 className={cn(
-                  "pressable surface relative w-[72%] shrink-0 snap-center overflow-hidden rounded-[1.25rem] text-left sm:w-auto",
+                  "pressable surface relative overflow-hidden rounded-[1.5rem] text-left",
                   on ? "ring-2 ring-tint" : "ring-0",
                 )}
               >
-                <div className={cn("h-28", w.accent)}>
+                <div className={cn("h-44 p-6", w.accent)}>
                   <WorldPreview world={w.id} />
                 </div>
                 <div className="p-4">
-                  <p className="flex items-center gap-2 t-headline text-ink">
-                    <span aria-hidden>{w.emoji}</span> {w.name}
+                  <p className="flex items-center gap-2 t-title3 text-ink">
+                    {w.name}
+                    <span className="rounded-full bg-tint/14 px-2 py-0.5 t-caption font-semibold text-tint">Recommended</span>
                   </p>
                   <p className="mt-0.5 t-subhead text-muted">{w.tagline}</p>
-                  <p className="mt-2 t-caption text-faint">{w.unit}</p>
+                  <ul className="mt-2.5 space-y-1 t-caption text-faint">
+                    <li className="flex items-center gap-1.5">
+                      <Check className="size-3.5 shrink-0 text-tint" /> Works on any device, no 3D needed
+                    </li>
+                    <li className="flex items-center gap-1.5">
+                      <Check className="size-3.5 shrink-0 text-tint" /> Full keyboard and screen-reader support
+                    </li>
+                    <li className="flex items-center gap-1.5">
+                      <Check className="size-3.5 shrink-0 text-tint" /> {w.unit}
+                    </li>
+                  </ul>
                 </div>
                 {on && (
-                  <motion.span layoutId="world-check" className="absolute right-3 top-3 flex size-7 items-center justify-center rounded-full bg-tint text-on-tint shadow-sm">
+                  <span className="absolute right-3 top-3 flex size-7 items-center justify-center rounded-full bg-tint text-on-tint shadow-sm">
                     <Check className="size-4" strokeWidth={3} />
-                  </motion.span>
+                  </span>
                 )}
               </button>
             );
           })}
+          {playableGames().map((g) => {
+            const on = world === g.id;
+            return (
+              <button
+                key={g.id}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                aria-label={`${g.name} — ${g.tagline}`}
+                onClick={() => {
+                  setWorld(g.id);
+                  haptic("selection");
+                }}
+                className={cn(
+                  "pressable surface relative overflow-hidden rounded-[1.5rem] text-left",
+                  on ? "ring-2 ring-tint" : "ring-0",
+                )}
+              >
+                <div className="relative h-36">
+                  <GamePreview id={g.id} />
+                  <span className="absolute left-3 top-3 rounded-full bg-[rgba(8,10,18,0.66)] px-2.5 py-1 t-caption font-semibold text-white backdrop-blur-md">
+                    {g.intensity === "calm" ? "Calm" : g.intensity === "steady" ? "Steady" : "Fast"}
+                  </span>
+                </div>
+                <div className="p-4">
+                  <p className="t-title3 text-ink">{g.name}</p>
+                  <p className="mt-0.5 t-subhead text-muted">{g.tagline}</p>
+                  <p className="mt-2 t-caption text-faint">Good for {g.subjects.join(" · ")}</p>
+                </div>
+                {on && (
+                  <span className="absolute right-3 top-3 flex size-7 items-center justify-center rounded-full bg-tint text-on-tint shadow-sm">
+                    <Check className="size-4" strokeWidth={3} />
+                  </span>
+                )}
+              </button>
+            );
+          })}
+
         </div>
       </section>
 
-      <section aria-labelledby="concepts-heading">
-        <h2 id="concepts-heading" className="mb-3 px-1 t-title2 text-ink">
-          Concepts
-        </h2>
-        <ul className="surface divide-y divide-line overflow-hidden rounded-[1.25rem]">
-          {concepts.map((c) => (
-            <li key={c.id} className="flex items-start gap-3 px-4 py-3.5">
-              <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-tint/14 font-rounded t-subhead font-bold text-tint">{c.questions}</span>
-              <div className="min-w-0 flex-1">
-                <p className="t-headline text-ink">{c.title}</p>
-                <p className="t-subhead text-muted">{c.description}</p>
-              </div>
-              <span className="mt-1 hidden shrink-0 t-caption text-faint sm:block">{c.fromNotes ? "From your notes" : "Background"}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
+      {extracted && (
+        <section aria-labelledby="brief-heading">
+          <details className="surface group overflow-hidden rounded-[1.5rem]">
+            <summary className="pressable flex cursor-pointer list-none items-center gap-3 p-4 sm:px-5">
+              <BookOpen className="size-4 shrink-0 text-tint" />
+              <span className="min-w-0 flex-1">
+                <span id="brief-heading" className="block t-headline text-ink">
+                  Read the chapter first
+                </span>
+                <span className="block t-caption text-faint">
+                  Two minutes · {extracted.concepts.length} concepts · {extracted.formulas.length} formulas ·{" "}
+                  {extracted.definitions.length} definitions
+                </span>
+              </span>
+              <ChevronDown className="size-4 shrink-0 text-faint transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="border-t border-line px-4 py-4 sm:px-5">
+              <ChapterBrief
+                extracted={extracted}
+                conceptQuestionCounts={Object.fromEntries(concepts.map((c) => [c.title.trim().toLowerCase(), c.questions]))}
+                originNote={<OriginBadge origin={quest.origin} />}
+              />
+            </div>
+          </details>
+        </section>
+      )}
 
       {/* Floating action bar (material): the one primary action on this screen. */}
       <div className="fixed inset-x-0 bottom-0 z-30 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">

@@ -27,6 +27,12 @@ export interface CollisionCheckResult {
  * Verifies the physical invariants of a 1D two-body collision:
  * momentum conserved, kinetic energy not created, no pass-through,
  * coefficient of restitution within [0, 1].
+ *
+ * These are mechanics-only invariants and must stay opt-in: callers reach them
+ * exclusively through a question's optional `physicsCheck` (a CollisionCheck
+ * with kind "collision-1d"), never by subject or by "has a calc spec". A
+ * chemistry or biology question therefore never pays the momentum/KE/e checks,
+ * whose inputs (m1, u1, v1 …) would be meaningless for it.
  */
 export function checkCollision(c: { m1: number; m2: number; u1: number; u2: number; v1: number; v2: number }): CollisionCheckResult {
   const issues: string[] = [];

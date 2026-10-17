@@ -14,6 +14,21 @@ import { loadOwnedMaterial } from "./access";
 /* upload                                                              */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Placeholder used when the student does not name their upload. It is treated
+ * as "no title", so the chapter title the model reads off the pages wins —
+ * otherwise a real chapter called "Human Reproduction" stays filed forever as
+ * "My chapter" and is impossible to find again.
+ */
+export const UNTITLED = "My chapter";
+
+/** The student's own title if they gave one, else the one read from the pages. */
+function bestTitle(given: string | undefined, extractedTitle: string | undefined): string {
+  const t = (given ?? "").trim();
+  if (t && t !== UNTITLED) return t;
+  return (extractedTitle ?? "").trim() || UNTITLED;
+}
+
 export async function createMaterial(uid: string, input: { title: string; settings: QuestSettings; files: { name: string; data: Buffer }[] }) {
   validateBatch(input.files.map((f) => ({ name: f.name, size: f.data.length })));
   const ingested = [];
@@ -42,7 +57,7 @@ export async function createMaterial(uid: string, input: { title: string; settin
   const material: Material = {
     id,
     ownerId: uid,
-    title: input.title.trim().slice(0, 120) || "My chapter",
+    title: input.title.trim().slice(0, 120) || UNTITLED,
     settings: input.settings,
     files,
     stage: "uploaded",
@@ -139,7 +154,7 @@ export async function analyzeMaterial(uid: string, materialId: string) {
         };
         await db().set("concepts", concept);
       }
-      await save(m, { extracted, title: m.title || extracted.chapterTitle, completedStages: [...m.completedStages, "concepts"] });
+      await save(m, { extracted, title: bestTitle(m.title, extracted.chapterTitle), completedStages: [...m.completedStages, "concepts"] });
     } catch (e) {
       await fail(m, "concepts", e);
     }
@@ -201,7 +216,7 @@ export async function generateQuestForMaterial(uid: string, materialId: string) 
         id: questId,
         ownerId: uid,
         materialId: m.id,
-        title: m.title || m.extracted.chapterTitle,
+        title: bestTitle(m.title, m.extracted.chapterTitle),
         subject: m.settings.subject,
         grade: m.settings.grade,
         conceptIds: usedConcepts,

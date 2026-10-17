@@ -12,7 +12,7 @@ import { cn } from "@/lib/cn";
 import { haptic } from "@/lib/haptics";
 import { fade, spring } from "@/lib/motion";
 import type { AnswerResult, SessionView } from "@/lib/services/play";
-import type { PublicQuestion } from "@/lib/types";
+import type { PublicQuestion, SkinWorld } from "@/lib/types";
 import { AchievementToasts, type Achievement } from "./achievement-toast";
 import { FeedbackBody, FeedbackHeader } from "./feedback-panel";
 import { PauseDialog } from "./pause-dialog";
@@ -49,7 +49,9 @@ export function QuestPlayer({ initial, videoEnabled }: { initial: SessionView; v
   const pauseRef = useRef<HTMLButtonElement>(null);
 
   const q = view.current;
-  const World = WORLD_COMPONENTS[view.session.world];
+  // A real-time game has its own player, so reaching this component with one
+  // means a stale link; fall back to the focused world rather than crashing.
+  const World = WORLD_COMPONENTS[view.session.world as SkinWorld] ?? WORLD_COMPONENTS.classic;
   const meta = worldMeta(view.session.world);
   const explain = useExplain(showTutor && tutor ? { sessionId: view.session.id, questionId: tutor.questionId, conceptId: tutor.conceptId } : null);
 

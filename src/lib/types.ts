@@ -35,8 +35,24 @@ export const ContentOrigin = z.enum([
 ]);
 export type ContentOrigin = z.infer<typeof ContentOrigin>;
 
-export const GameWorld = z.enum(["classic", "balloons", "maze", "rocket", "bubbles", "castle"]);
+/**
+ * A playable experience. The first six are 2D "worlds" (skins over the
+ * question list); the realtime games have their own loop and
+ * player component. The session only stores which one was chosen — the
+ * learning engine is identical for all of them.
+ */
+export const GameWorld = z.enum(["classic", "balloons", "maze", "rocket", "bubbles", "castle", "spider-climb", "force-rush"]);
 export type GameWorld = z.infer<typeof GameWorld>;
+
+/** Experiences that run a real-time loop on a canvas and have their own player. */
+export const REALTIME_GAMES = ["spider-climb", "force-rush"] as const;
+export type RealtimeGame = (typeof REALTIME_GAMES)[number];
+/** The 2D "worlds" that skin the shared question list. */
+export type SkinWorld = Exclude<GameWorld, RealtimeGame>;
+
+export function isRealtimeGame(w: GameWorld): w is RealtimeGame {
+  return (REALTIME_GAMES as readonly string[]).includes(w);
+}
 
 /* ------------------------------------------------------------------ */
 /* Visual specifications (rendered deterministically on the client)    */

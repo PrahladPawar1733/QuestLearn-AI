@@ -2,7 +2,7 @@ import { BarChart3, Brain, ChevronRight, FileUp, Gauge, Gamepad2, Layers, LineCh
 import Link from "next/link";
 import { connection } from "next/server";
 import { Logo } from "@/components/brand/logo";
-import { WORLDS } from "@/components/game/types";
+
 import { WorldPreview } from "@/components/game/world-preview";
 import { HeroPreview } from "@/components/landing/hero-preview";
 import { ModeBadge } from "@/components/layout/app-nav";
@@ -123,23 +123,24 @@ export default async function Landing() {
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
               <div>
                 <h2 className="t-large-title text-ink">Play the Collisions demo</h2>
-                <p className="mt-2 max-w-2xl t-body text-muted">Grade 11 Physics: 6 concepts and 14 checked questions. No account or upload needed. Pick a world to play in.</p>
+                <p className="mt-2 max-w-2xl t-body text-muted">Grade 11 Physics: 6 concepts and 14 checked questions. No account or upload needed. Pick how you want to play.</p>
               </div>
               <Button asChild size="lg" className="rounded-full">
                 <Link href={`/quest/${DEMO_QUEST_ID}`}>Start the demo</Link>
               </Button>
             </div>
-            <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-              {WORLDS.map((w) => (
-                <Link key={w.id} href={`/quest/${DEMO_QUEST_ID}?world=${w.id}`} className="pressable overflow-hidden rounded-[1.25rem] bg-bg">
-                  <div className={cn("h-20", w.accent)}>
-                    <WorldPreview world={w.id} />
-                  </div>
-                  <p className="px-3 py-2.5 t-subhead font-semibold text-ink">
-                    {w.emoji} {w.name}
-                  </p>
-                </Link>
-              ))}
+            {/* Two ways to play, not six near-identical ones. */}
+            <div className="mt-8 grid gap-3 sm:grid-cols-2">
+              <Link href={`/quest/${DEMO_QUEST_ID}?world=spider-climb`} className="pressable overflow-hidden rounded-[1.25rem] bg-bg">
+                <div className="h-28 bg-[radial-gradient(ellipse_at_50%_120%,#2b3a63_0%,#111523_60%,#080a12_100%)]" />
+                <p className="px-3 py-2.5 t-subhead font-semibold text-ink">Spider Climb · answer to swing</p>
+              </Link>
+              <Link href={`/quest/${DEMO_QUEST_ID}?world=classic`} className="pressable overflow-hidden rounded-[1.25rem] bg-bg">
+                <div className="h-28 bg-tint/12">
+                  <WorldPreview world="classic" />
+                </div>
+                <p className="px-3 py-2.5 t-subhead font-semibold text-ink">Focus · just the questions</p>
+              </Link>
             </div>
           </div>
         </section>

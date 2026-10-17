@@ -1,0 +1,198 @@
+"use client";
+
+/**
+ * Spider Climb — the page.
+ *
+ * Styled to the reference design: ink background, mint accent, a stage band
+ * for the animation, and the question as real DOM beneath it. Everything a
+ * student reads is HTML — proper typography, selectable text, real buttons
+ * with focus rings and screen-reader support — which is the main reason this
+ * layout beats painting a question into a canvas.
+ *
+ * Tokens are inlined from the reference rather than taken from the app's
+ * palette on purpose: this is a game skin with its own identity, and it must
+ * look the same whatever theme the rest of the app is in.
+ */
+import { RichText } from "@/components/math/rich-text";
+import { cn } from "@/lib/cn";
+import type { GameHudProps } from "@/lib/game/module";
+import type { SpiderHud } from "./game";
+
+const MINT = "#c3f18c";
+const PAPER = "#eef1e9";
+const MUTED = "#93a0b9";
+const LINE = "#293245";
+
+export function SpiderClimbHud({ hud, onChoose, onContinue }: GameHudProps<SpiderHud>) {
+  const q = hud.question;
+
+  return (
+    <div
+      className="relative min-h-[100dvh] w-full"
+      // --stage-top tells the host exactly where to put the canvas band, so
+      // the animation lines up with the frame drawn here.
+      style={{ color: PAPER, fontFamily: "Arial, Helvetica, sans-serif", ["--stage-top" as string]: "var(--sc-stage-top)" }}
+    >
+      <div className="mx-auto w-full max-w-[1500px] px-[4%] sm:px-[5%]">
+        {/* ---------------- HUD row ---------------- */}
+        <div
+          className="flex h-[var(--sc-head)] items-center justify-between gap-4"
+          style={{ ["--sc-head" as string]: "86px" }}
+        >
+          <div className="min-w-0">
+            <span className="block text-[10px] font-extrabold uppercase tracking-[2.3px]" style={{ color: MINT }}>
+              {hud.intent || "Spider Climb"}
+            </span>
+            <h1 className="my-1.5 text-[15px] font-bold sm:text-[19px]">
+              Building {Math.min(hud.total, hud.answered + 1)} of {hud.total}
+            </h1>
+          </div>
+          <div className="flex gap-3 text-right sm:gap-6">
+            <Stat label="Health" value={"●".repeat(hud.hearts) || "—"} tone={hud.hearts <= 1 ? "warn" : "normal"} />
+            <Stat label="Score" value={hud.score.toLocaleString()} />
+            <Stat label="Streak" value={String(hud.streak)} />
+            <Stat label="First try" value={String(hud.firstTry)} />
+          </div>
+        </div>
+
+        {/* ---------------- the stage band ----------------
+            The canvas is painted behind this by the host; this element only
+            reserves the space and draws the frame and the banner over it. */}
+        <div
+          data-game-stage
+          className="relative overflow-hidden rounded-[18px]"
+          style={{ height: "clamp(270px,43vh,470px)", border: `1px solid #37435a`, background: "transparent" }}
+        >
+          {hud.banner && (
+            <div className="pointer-events-none absolute inset-x-3 bottom-3 flex justify-center">
+              <div
+                className="max-w-[680px] rounded-[10px] px-[18px] py-[13px] text-[13px] leading-[1.5] backdrop-blur-[10px]"
+                style={{ border: `1px solid ${hud.banner.color}`, background: "#111e24ef" }}
+              >
+                <strong className="mr-2.5" style={{ color: hud.banner.color }}>
+                  {hud.banner.title}
+                </strong>
+                {hud.banner.text}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* progress pips */}
+        <div className="mt-2.5 flex gap-1">
+          {Array.from({ length: hud.total }).map((_, i) => (
+            <i
+              key={i}
+              className="h-1 w-[22px] rounded-[3px]"
+              style={{ background: i < hud.answered ? MINT : "#313c50" }}
+            />
+          ))}
+        </div>
+
+        {/* ---------------- question panel ---------------- */}
+        <div className="min-h-[220px] pb-16 pt-6">
+          {hud.awaitingRetry ? (
+            <div className="pl-[22px]" style={{ borderLeft: "3px solid #ff8e93" }}>
+              <span className="block text-[10px] font-extrabold uppercase tracking-[2.3px]" style={{ color: "#ff8e93" }}>
+                The anchor snapped
+              </span>
+              {hud.miss?.misconception && (
+                <p className="mb-1 mt-3 text-[16px] font-bold" style={{ color: PAPER }}>
+                  {humanise(hud.miss.misconception)}
+                </p>
+              )}
+              <p className="my-2.5 max-w-[760px] text-[14px] leading-[1.6]" style={{ color: "#b2bfd3" }}>
+                <RichText text={hud.miss?.feedback ?? "That anchor will not hold. Rule it out and look again."} />
+              </p>
+              {hud.miss?.hint && (
+                <p
+                  className="my-3 max-w-[760px] rounded-[10px] px-4 py-3 text-[13px] leading-[1.6]"
+                  style={{ background: "#1b2538", border: `1px solid ${LINE}`, color: "#cfe0ff" }}
+                >
+                  <strong style={{ color: MINT }}>Hint · </strong>
+                  <RichText text={hud.miss.hint} />
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={onContinue}
+                className="mt-2 rounded-[10px] px-6 py-[15px] text-[14px] font-extrabold"
+                style={{ background: MINT, color: "#172314" }}
+              >
+                Try another anchor
+              </button>
+            </div>
+          ) : q ? (
+            <>
+              <span className="block text-[10px] font-extrabold uppercase tracking-[2.3px]" style={{ color: MINT }}>
+                {hud.conceptTitle}
+              </span>
+              <h2 className="my-3 mb-5 text-[18px] font-bold leading-[1.4] sm:text-[23px]">
+                <RichText text={q.text} />
+              </h2>
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                {q.options.map((o, i) => {
+                  const out = hud.tried.includes(i);
+                  return (
+                    <button
+                      key={o.id}
+                      type="button"
+                      disabled={out || hud.phase !== "question"}
+                      onClick={() => onChoose?.(o.id)}
+                      className={cn(
+                        "flex min-h-[68px] items-center gap-3 rounded-[10px] p-[10px] text-left text-[13px] font-bold transition-all sm:p-[14px] sm:text-[14px]",
+                        out ? "cursor-not-allowed line-through opacity-45" : "hover:-translate-y-[2px]",
+                      )}
+                      style={{
+                        border: `1px solid ${out ? "#3a2b32" : LINE}`,
+                        background: out ? "#1a1620" : "#151e30",
+                        color: PAPER,
+                      }}
+                    >
+                      <span
+                        className="flex size-7 shrink-0 items-center justify-center rounded-[7px] text-[12px] font-extrabold"
+                        style={{ background: out ? "#3a2b32" : "#222d45", color: out ? "#ff8e93" : MINT }}
+                      >
+                        {o.id}
+                      </span>
+                      <RichText text={o.text} />
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-4 text-[11px]" style={{ color: MUTED }}>
+                Your answer picks the web anchor. A wrong one snaps — you get another go.
+              </p>
+            </>
+          ) : (
+            <p className="pt-10 text-center text-[13px]" style={{ color: MUTED }}>
+              {hud.phase === "question" ? "" : "Swinging to the next gap…"}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Misconceptions are stored as machine keys ("thickness-blocks-everything")
+ * so the engine can track them. A student should read a sentence, not a slug.
+ */
+function humanise(key: string): string {
+  const words = key.replace(/[-_]+/g, " ").trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+function Stat({ label, value, tone = "normal" }: { label: string; value: string; tone?: "normal" | "warn" }) {
+  return (
+    <div>
+      <small className="mb-[7px] block text-[8px] uppercase tracking-[1.5px] sm:text-[9px]" style={{ color: MUTED }}>
+        {label}
+      </small>
+      <b className="text-[18px] sm:text-[22px]" style={{ color: tone === "warn" ? "#ff7c83" : PAPER }}>
+        {value}
+      </b>
+    </div>
+  );
+}

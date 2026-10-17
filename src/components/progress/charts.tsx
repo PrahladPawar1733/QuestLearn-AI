@@ -41,7 +41,7 @@ const tick = { fill: AXIS, fontSize: 12 };
 
 export function AccuracyChart({ data }: { data: { run: number; label: string; accuracy: number }[] }) {
   return (
-    <div className="h-60 w-full">
+    <div className="h-52 w-full sm:h-60">
       <ResponsiveContainer>
         <LineChart data={data} margin={{ top: 16, right: 16, bottom: 4, left: -16 }}>
           <CartesianGrid stroke={GRID} vertical={false} />
@@ -68,9 +68,10 @@ export function SubjectChart({ data }: { data: { subject: string; mastery: numbe
   return (
     <div className="w-full" style={{ height: Math.max(120, data.length * 52) }}>
       <ResponsiveContainer>
-        <BarChart data={data} layout="vertical" margin={{ top: 4, right: 48, bottom: 4, left: 0 }} barCategoryGap={10}>
+        <BarChart data={data} layout="vertical" margin={{ top: 4, right: 44, bottom: 4, left: 0 }} barCategoryGap={10}>
           <XAxis type="number" domain={[0, 100]} hide />
-          <YAxis type="category" dataKey="subject" tick={{ fill: INK, fontSize: 13 }} tickLine={false} axisLine={false} width={96} />
+          {/* 88 px of label + 44 px of value label still leaves a readable track at 360 px. */}
+          <YAxis type="category" dataKey="subject" tick={{ fill: INK, fontSize: 13 }} tickLine={false} axisLine={false} width={88} />
           <Tooltip {...tooltipStyle} formatter={(v) => [`${v}%`, "Mastery"]} />
           <Bar dataKey="mastery" fill={SERIES_1} radius={[0, 4, 4, 0]} maxBarSize={22}>
             <LabelList dataKey="mastery" position="right" formatter={(v) => `${v}%`} fill={INK} fontSize={12} fontWeight={600} />
@@ -95,9 +96,18 @@ export function ImprovementChart({ data }: { data: { title: string; before: numb
       </div>
       <div className="w-full" style={{ height: Math.max(140, rows.length * 70) }}>
         <ResponsiveContainer>
-          <BarChart data={rows} layout="vertical" margin={{ top: 4, right: 48, bottom: 4, left: 0 }} barGap={2} barCategoryGap={14}>
+          <BarChart data={rows} layout="vertical" margin={{ top: 4, right: 44, bottom: 4, left: 0 }} barGap={2} barCategoryGap={14}>
             <XAxis type="number" domain={[0, 100]} hide />
-            <YAxis type="category" dataKey="title" tick={{ fill: INK, fontSize: 12 }} tickLine={false} axisLine={false} width={120} />
+            {/* Concept titles are long; truncate the tick and let the data table carry the full name. */}
+            <YAxis
+              type="category"
+              dataKey="title"
+              tick={{ fill: INK, fontSize: 12 }}
+              tickLine={false}
+              axisLine={false}
+              width={96}
+              tickFormatter={(v: string) => (v.length > 16 ? `${v.slice(0, 15)}…` : v)}
+            />
             <Tooltip {...tooltipStyle} formatter={(v, n) => [`${v}%`, n === "before" ? "Before the lesson" : "From the follow-up onwards"]} />
             <Bar dataKey="before" fill={SERIES_1} radius={[0, 4, 4, 0]} maxBarSize={16}>
               <LabelList dataKey="before" position="right" formatter={(v) => `${v}%`} fill={AXIS} fontSize={11} />

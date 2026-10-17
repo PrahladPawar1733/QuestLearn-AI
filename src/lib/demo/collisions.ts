@@ -6,7 +6,7 @@
  * This content is labelled "demo_prepared" in the UI. It is never presented
  * as AI output.
  */
-import type { Concept, Material, Quest, Question, TutorContent, VisualSpec } from "../types";
+import type { Concept, ExtractedContent, Material, Quest, Question, TutorContent, VisualSpec } from "../types";
 
 export const DEMO_OWNER = "system";
 export const DEMO_QUEST_ID = "demo-collisions";
@@ -567,12 +567,77 @@ export function demoQuest(): Quest {
   };
 }
 
+/**
+ * A hand-written chapter brief for the demo.
+ *
+ * For an uploaded chapter this block is produced by `extractChapter` and
+ * stored on the material; the demo has no upload, so it is authored here and
+ * labelled as prepared demo content. Everything a student reads before play
+ * comes from this shape, so the demo must carry one or the pre-play screen
+ * would be empty exactly where it matters most.
+ */
+function demoExtracted(): ExtractedContent {
+  return {
+    chapterTitle: "Collisions",
+    subject: "Physics",
+    grade: "11",
+    summary:
+      "A collision is a brief, forceful interaction between two bodies. Because the collision forces are internal to the pair and act for a very short time, the total momentum of the pair is conserved — whatever happens in between. Kinetic energy is a different story: it is conserved only in an elastic collision, and is partly converted to heat, sound and deformation in every real one. The coefficient of restitution e measures where a collision sits between those extremes.",
+    concepts: DEMO_CONCEPT_SEEDS.map((c) => ({
+      key: c.generatorKey ?? c.id,
+      title: c.title,
+      description: c.description,
+      difficulty: c.difficulty,
+      sourceRefs: [{ ref: "Demo chapter: Collisions" }],
+      fromNotes: true,
+    })),
+    definitions: [
+      { term: "Linear momentum", definition: "The product of a body's mass and velocity, p = mv. It is a vector, so its direction matters as much as its size.", fromNotes: true },
+      { term: "Elastic collision", definition: "A collision in which total kinetic energy is conserved as well as momentum.", fromNotes: true },
+      { term: "Inelastic collision", definition: "A collision in which momentum is conserved but kinetic energy is not. In a perfectly inelastic collision the bodies move off together.", fromNotes: true },
+      { term: "Coefficient of restitution (e)", definition: "The ratio of the relative speed of separation to the relative speed of approach. e = 1 is elastic, e = 0 is perfectly inelastic.", fromNotes: true },
+      { term: "Impulse", definition: "The change in momentum produced by a force acting over a time interval, J = FΔt = Δp.", fromNotes: true },
+    ],
+    formulas: [
+      { latex: "p = mv", meaning: "Momentum of a single body. Direction follows the velocity.", fromNotes: true },
+      { latex: "m_1u_1 + m_2u_2 = m_1v_1 + m_2v_2", meaning: "Conservation of momentum for a two-body collision along a line.", fromNotes: true },
+      { latex: "e = \\frac{v_2 - v_1}{u_1 - u_2}", meaning: "Coefficient of restitution: separation speed over approach speed.", fromNotes: true },
+      { latex: "KE = \\tfrac{1}{2}mv^2", meaning: "Kinetic energy. Compare before and after to classify the collision.", fromNotes: true },
+      { latex: "v = \\frac{m_1u_1 + m_2u_2}{m_1 + m_2}", meaning: "Common final velocity when two bodies stick together (perfectly inelastic).", fromNotes: true },
+    ],
+    examples: [
+      {
+        problem: "A 2 kg trolley moving at 3 m/s strikes a stationary 4 kg trolley and they couple together. Find their common speed.",
+        solution: "Momentum before = 2 × 3 + 4 × 0 = 6 kg·m/s. After, the pair has mass 6 kg, so v = 6 / 6 = 1 m/s in the original direction.",
+      },
+      {
+        problem: "Two equal masses collide head-on elastically, one at u and one at rest. What happens?",
+        solution: "For equal masses in a one-dimensional elastic collision the velocities are exchanged: the moving body stops and the stationary one leaves at u.",
+      },
+      {
+        problem: "A ball dropped from 1.0 m rebounds to 0.64 m. Find e.",
+        solution: "Speeds go as √h, so e = √(0.64 / 1.0) = 0.8.",
+      },
+    ],
+    relationships: [
+      { from: "Impulse", to: "Momentum", relation: "impulse is the change in" },
+      { from: "Coefficient of restitution", to: "Elastic collisions", relation: "e = 1 describes" },
+      { from: "Coefficient of restitution", to: "Inelastic collisions", relation: "e = 0 describes" },
+      { from: "Conservation of momentum", to: "Solving collision problems", relation: "is the main tool for" },
+    ],
+    // The demo chapter is authored, so nothing was unreadable. A real upload
+    // lists anything the model could not read here instead of inventing it.
+    uncertain: [],
+  };
+}
+
 export function demoMaterial(): Material {
   return {
     id: DEMO_MATERIAL_ID,
     ownerId: DEMO_OWNER,
     title: "Collisions",
     settings: { subject: "Physics", grade: "11", goal: "School exam + JEE foundation", difficulty: "mixed", questionCount: 10 },
+    extracted: demoExtracted(),
     files: [],
     stage: "ready",
     completedStages: ["uploaded", "reading", "concepts", "questions", "preparing", "ready"],

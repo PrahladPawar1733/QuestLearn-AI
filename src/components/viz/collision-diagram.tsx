@@ -174,7 +174,7 @@ export function CollisionDiagram({ spec, mode = "full" }: { spec: CollisionVisua
             <p className="text-ink">
               {spec.label1}: <span className="font-semibold text-tint">{sym(spec.u1)}</span> → <span className="font-semibold text-tint">{sym(v1)}</span>
               <span className="mx-2 text-faint">·</span>
-              {spec.label2}: <span className="font-semibold text-teal">{sym(spec.u2)}</span> → <span className="font-semibold text-teal">{sym(v2)}</span>
+              {spec.label2}: <span className="font-semibold text-cyan">{sym(spec.u2)}</span> → <span className="font-semibold text-cyan">{sym(v2)}</span>
             </p>
           </div>
           <div className="bg-surface-2 px-4 py-2.5">

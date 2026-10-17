@@ -6,7 +6,7 @@
 import { Question, type CalcSpec } from "../types";
 import { DimensionError, evaluate, ExprError, type Quantity } from "./expr";
 import { checkCollision } from "./physics";
-import { dimEqual, dimToString, normalizeUnit, parseUnit } from "./units";
+import { dimEqual, dimToString, normalizeUnit, OffsetUnitError, parseUnit } from "./units";
 
 export interface ValidationReport {
   ok: boolean;
@@ -75,7 +75,10 @@ function validateCalc(q: Question, report: ValidationReport) {
     computed = computeCalc(calc).unitValue;
     report.checks.push("units-dimensionally-consistent");
   } catch (e) {
-    if (e instanceof DimensionError) report.issues.push(`Dimension check failed: ${e.message}`);
+    // Offset scales (°C/°F) are refused by units.ts rather than mis-converted,
+    // so surface that message verbatim: it tells the author how to fix the spec.
+    if (e instanceof OffsetUnitError) report.issues.push(`Unsupported unit: ${e.message}`);
+    else if (e instanceof DimensionError) report.issues.push(`Dimension check failed: ${e.message}`);
     else if (e instanceof ExprError) report.issues.push(`Calculation could not be evaluated: ${e.message}`);
     else report.issues.push(`Calculation error: ${(e as Error).message}`);
     return;
@@ -152,6 +155,10 @@ export function validateQuestion(input: unknown, existing: Pick<Question, "id" |
     validateCalc(q, report);
   }
 
+  // Mechanical invariants are keyed off the optional `physicsCheck` field (a
+  // CollisionCheck), never off the subject or the presence of `calc`. A
+  // chemistry question carries no physicsCheck, so momentum/KE/restitution are
+  // never evaluated for it — see the note on checkCollision in physics.ts.
   if (q.physicsCheck) {
     const r = checkCollision(q.physicsCheck);
     report.checks.push(...r.checks);

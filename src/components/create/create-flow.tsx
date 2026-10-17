@@ -5,10 +5,13 @@ import {
   ArrowDown,
   ArrowUp,
   BookOpen,
+  Camera,
   Check,
   ChevronsUpDown,
+  Crop,
   FileText,
   Gamepad2,
+  GripVertical,
   ImageIcon,
   Loader2,
   Play,
@@ -20,13 +23,21 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { CameraSheet } from "@/components/capture/camera-sheet";
+import { CropEditor } from "@/components/capture/crop-editor";
+import { movePage } from "@/components/capture/page-order";
+import { isLikelyHeic, pageId, prepareFileOrKeep } from "@/components/capture/prepare";
+import { gateFor, qualitySummary } from "@/components/capture/quality-gate";
+import type { CapturedPage } from "@/components/capture/types";
+import { REORDER_INDEX_ATTR, REORDER_ROOT_ATTR, usePointerReorder } from "@/components/capture/use-pointer-reorder";
 import { Tex } from "@/components/math/rich-text";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { api, ApiError } from "@/lib/api-client";
+import { hasCameraSupport, type ImageQuality } from "@/lib/capture";
 import { cn } from "@/lib/cn";
 import { DEMO_QUEST_ID } from "@/lib/demo/collisions";
 import { spring } from "@/lib/motion";
@@ -40,6 +51,23 @@ interface LocalFile {
   url?: string;
   pages?: number | null;
   error?: string;
+  /** Legibility verdict for photos; null when it could not be measured. */
+  quality?: ImageQuality | null;
+  /** The student was warned about this photo and chose to keep it. */
+  kept?: boolean;
+  /** True once the client pipeline has oriented, resized and re-encoded it. */
+  processed?: boolean;
+}
+
+/** HEIC that this browser could not decode: say what to change, not "unsupported". */
+const HEIC_ADVICE =
+  "iPhone HEIC photo — this browser can't convert it. Use the camera button above, or switch iPhone Settings › Camera › Formats to “Most Compatible” and retake it.";
+
+/** `useSyncExternalStore` subscriber for a value that cannot change in a session. */
+const subscribeNever = () => () => {};
+
+function localFileFromPage(page: CapturedPage): LocalFile {
+  return { id: page.id, file: page.file, kind: "image", url: page.url, quality: page.quality, kept: page.kept, processed: true };
 }
 
 interface MaterialDTO {
@@ -62,10 +90,6 @@ const STAGES: { id: ProcessingStage; label: string; detail: string }[] = [
 
 const GRADES = ["8", "9", "10", "11", "12", "Other"];
 const GOALS = ["School exam", "JEE / NEET foundation", "Board exam revision", "Understand the chapter"];
-
-function uid() {
-  return Math.random().toString(36).slice(2);
-}
 
 export function CreateFlow({
   aiAvailable,
@@ -94,7 +118,15 @@ export function CreateFlow({
   const [running, setRunning] = useState(false);
   const [quest, setQuest] = useState<{ id: string; questionCount: number; playLength: number; rejectedCount: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const dragIndex = useRef<number | null>(null);
+  /** The `capture="environment"` input: the fallback when getUserMedia is unavailable. */
+  const captureRef = useRef<HTMLInputElement>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [editing, setEditing] = useState<LocalFile | null>(null);
+  const [preparing, setPreparing] = useState(0);
+  // Camera support is a browser fact: false on the server, read from the
+  // browser after hydration. `useSyncExternalStore` is the SSR-safe way to say
+  // that — a plain effect would render the wrong button for one frame.
+  const cameraSupported = useSyncExternalStore(subscribeNever, () => hasCameraSupport().supported, () => false);
 
   // Revoke object URLs on unmount.
   const filesRef = useRef(files);
@@ -107,29 +139,56 @@ export function CreateFlow({
     async (list: FileList | File[]) => {
       setFormError(null);
       const incoming = Array.from(list);
+      const room = Math.max(0, limits.maxFiles - filesRef.current.length);
+      if (incoming.length > room) setFormError(`You can upload up to ${limits.maxFiles} files at once.`);
+      const batch = incoming.slice(0, room);
+
       const next: LocalFile[] = [];
-      for (const file of incoming) {
-        const name = file.name.toLowerCase();
-        const isPdf = file.type === "application/pdf" || name.endsWith(".pdf");
-        const isImg = ["image/jpeg", "image/png"].includes(file.type) || /\.(jpe?g|png)$/.test(name);
-        if (!isPdf && !isImg) {
-          setFormError(`"${file.name}" isn't supported. Use PDF, JPG or PNG.`);
-          continue;
+      const images = batch.filter((f) => !(f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")));
+      setPreparing(images.length);
+      try {
+        for (const file of batch) {
+          const name = file.name.toLowerCase();
+          const isPdf = file.type === "application/pdf" || name.endsWith(".pdf");
+          const heic = isLikelyHeic(file);
+          const isImg = heic || ["image/jpeg", "image/png", "image/webp"].includes(file.type) || /\.(jpe?g|png|webp)$/.test(name);
+          if (!isPdf && !isImg) {
+            setFormError(`"${file.name}" isn't supported. Use PDF, JPG, PNG or WebP.`);
+            continue;
+          }
+          if (isPdf) {
+            if (file.size > limits.maxFileMB * 1024 * 1024) {
+              setFormError(`"${file.name}" is larger than ${limits.maxFileMB} MB.`);
+              continue;
+            }
+            next.push({ id: pageId(), file, kind: "pdf", pages: null });
+            continue;
+          }
+
+          // Photos are normalized here, not on the server: a 12 MP phone photo
+          // is several MB that the server would resize to 2400 px anyway, and
+          // an unprocessed one can blow the per-file limit on its own.
+          const prepared = await prepareFileOrKeep(file, { source: "file" });
+          setPreparing((p) => Math.max(0, p - 1));
+          if (!prepared) {
+            // Could not be decoded *and* could not be sent as-is.
+            setFormError(heic ? `"${file.name}" — ${HEIC_ADVICE}` : `"${file.name}" is larger than ${limits.maxFileMB} MB and this browser couldn't shrink it.`);
+            continue;
+          }
+          const row = localFileFromPage(prepared.page);
+          next.push({
+            ...row,
+            processed: prepared.processed,
+            // The one decode failure with a known cause and a known fix.
+            error: !prepared.processed && heic ? HEIC_ADVICE : prepared.page.tooSmall ? "Too small to read — upload a photo at least 200 px across." : undefined,
+          });
         }
-        if (file.size > limits.maxFileMB * 1024 * 1024) {
-          setFormError(`"${file.name}" is larger than ${limits.maxFileMB} MB.`);
-          continue;
-        }
-        next.push({ id: uid(), file, kind: isPdf ? "pdf" : "image", url: isImg ? URL.createObjectURL(file) : undefined, pages: isPdf ? null : undefined });
+      } finally {
+        setPreparing(0);
       }
-      setFiles((prev) => {
-        const merged = [...prev, ...next];
-        if (merged.length > limits.maxFiles) {
-          setFormError(`You can upload up to ${limits.maxFiles} files at once.`);
-          return merged.slice(0, limits.maxFiles);
-        }
-        return merged;
-      });
+
+      setFiles((prev) => [...prev, ...next]);
+
       // PDF page counts (read locally; nothing leaves the device until you press Create)
       for (const f of next.filter((x) => x.kind === "pdf")) {
         try {
@@ -146,14 +205,23 @@ export function CreateFlow({
   );
 
   const totalMB = files.reduce((s, f) => s + f.file.size, 0) / 1024 / 1024;
-  const move = (i: number, d: -1 | 1) =>
-    setFiles((prev) => {
-      const j = i + d;
-      if (j < 0 || j >= prev.length) return prev;
-      const out = [...prev];
-      [out[i], out[j]] = [out[j], out[i]];
-      return out;
-    });
+  /** One move entry point for the grip drag, the arrow buttons and the keyboard. */
+  const move = useCallback(
+    (from: number, to: number) =>
+      setFiles((prev) => {
+        const next = movePage(prev, from, to);
+        // `movePage` hands back the same array when nothing moved, which lets a
+        // pointermove that lands in place skip the re-render entirely.
+        return next === prev ? prev : [...next];
+      }),
+    [],
+  );
+  const reorder = usePointerReorder({
+    count: files.length,
+    axis: "y",
+    onMove: move,
+    labelFor: (i) => filesRef.current[i]?.file.name ?? `Page ${i + 1}`,
+  });
   const remove = (id: string) =>
     setFiles((prev) => {
       const f = prev.find((x) => x.id === id);
@@ -167,6 +235,21 @@ export function CreateFlow({
     });
     setFormError(null);
   };
+
+  /** Replace one row in place with the edited bytes (crop / rotate / retake). */
+  const applyEdit = useCallback((id: string, page: CapturedPage) => {
+    setFiles((prev) =>
+      prev.map((f) => {
+        if (f.id !== id) return f;
+        if (f.url) URL.revokeObjectURL(f.url);
+        return { ...localFileFromPage(page), id: f.id };
+      }),
+    );
+    setEditing(null);
+  }, []);
+
+  const photoGates = useMemo(() => files.filter((f) => f.kind === "image" && !f.error).map((f) => gateFor(f.quality)), [files]);
+  const photoWarning = qualitySummary(photoGates);
 
   /* ---------------- pipeline ---------------- */
 
@@ -454,20 +537,56 @@ export function CreateFlow({
             <span className={cn("flex size-14 items-center justify-center rounded-full transition-colors", dragOver ? "bg-tint text-on-tint" : "bg-tint/14 text-tint")} aria-hidden>
               <UploadCloud className="size-7" />
             </span>
-            <p className="mt-4 t-headline text-ink">{dragOver ? "Release to add" : "Drop your notes here"}</p>
+            <p className="mt-4 t-headline text-ink">{dragOver ? "Release to add" : "Photograph your notes, or add a file"}</p>
             <p className="mt-1 t-footnote text-muted">
-              PDF, JPG or PNG · up to {limits.maxFileMB} MB each, {limits.maxFiles} files, {limits.maxTotalMB} MB total
+              PDF, JPG, PNG or WebP · up to {limits.maxFileMB} MB each, {limits.maxFiles} files, {limits.maxTotalMB} MB total
             </p>
-            <Button variant="tinted" className="mt-5" onClick={() => inputRef.current?.click()}>
-              Choose files
-            </Button>
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+              {/* Live camera when the browser can open one... */}
+              {cameraSupported && (
+                <Button className="h-11" onClick={() => setCameraOpen(true)} disabled={files.length >= limits.maxFiles}>
+                  <Camera /> Use camera
+                </Button>
+              )}
+              {/* ...and the OS camera app when it cannot. Same destination. */}
+              {!cameraSupported && (
+                <Button className="h-11" onClick={() => captureRef.current?.click()} disabled={files.length >= limits.maxFiles}>
+                  <Camera /> Take a photo
+                </Button>
+              )}
+              <Button variant="tinted" className="h-11" onClick={() => inputRef.current?.click()}>
+                Choose files
+              </Button>
+            </div>
+            {preparing > 0 && (
+              <p className="mt-3 flex items-center gap-1.5 t-footnote text-muted" aria-live="polite">
+                <Loader2 className="size-3.5 animate-spin" aria-hidden /> Getting {preparing} photo{preparing === 1 ? "" : "s"} ready…
+              </p>
+            )}
             <input
               ref={inputRef}
               type="file"
               multiple
-              accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+              accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
               className="sr-only"
               aria-label="Choose files to upload"
+              onChange={(e) => {
+                if (e.target.files) void addFiles(e.target.files);
+                e.target.value = "";
+              }}
+            />
+            {/* The mobile fallback, and the escape hatch the camera sheet uses
+                when getUserMedia fails: the OS camera app hands back a file. */}
+            <input
+              ref={captureRef}
+              type="file"
+              accept="image/*"
+              // No `multiple`: with `capture` set, browsers that honour it open
+              // the camera for a single shot, and the ones that ignore it fall
+              // back to the picker — `multiple` only muddies that.
+              capture="environment"
+              className="sr-only"
+              aria-label="Take a photo of your notes with your device camera"
               onChange={(e) => {
                 if (e.target.files) void addFiles(e.target.files);
                 e.target.value = "";
@@ -478,72 +597,108 @@ export function CreateFlow({
           {files.length > 0 && (
             <>
               <Card className="overflow-hidden">
-                <ul aria-label="Files to upload, in page order">
+                <ul aria-label="Files to upload, in page order" {...{ [REORDER_ROOT_ATTR]: true }}>
                   <AnimatePresence initial={false}>
-                    {files.map((f, i) => (
-                      <motion.li key={f.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="relative bg-surface">
-                        <div
-                          draggable
-                          onDragStart={() => (dragIndex.current = i)}
-                          onDragOver={(e) => e.preventDefault()}
-                          onDrop={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            const from = dragIndex.current;
-                            if (from === null || from === i) return;
-                            setFiles((prev) => {
-                              const out = [...prev];
-                              const [it] = out.splice(from, 1);
-                              out.splice(i, 0, it);
-                              return out;
-                            });
-                            dragIndex.current = null;
-                          }}
-                          className={cn("flex cursor-grab items-center gap-3 py-2.5 pl-3 pr-1.5 active:cursor-grabbing", f.error && "bg-danger-fill/8")}
+                    {files.map((f, i) => {
+                      const gate = f.kind === "image" && !f.error ? gateFor(f.quality) : null;
+                      return (
+                        <motion.li
+                          key={f.id}
+                          layout
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0 }}
+                          {...{ [REORDER_INDEX_ATTR]: i }}
+                          className={cn("relative bg-surface", reorder.dragging === i && "z-10 shadow-[var(--shadow-float)]")}
                         >
-                          <span className="w-5 shrink-0 text-center font-rounded t-footnote font-semibold text-muted tabular">{i + 1}</span>
-                          {f.url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={f.url} alt="" className="size-12 shrink-0 rounded-xl bg-surface-2 object-cover" />
-                          ) : (
-                            <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-muted" aria-hidden>
-                              <FileText className="size-6" />
+                          <div className={cn("flex items-center gap-2 py-2.5 pl-1 pr-1.5", f.error && "bg-danger-fill/8")}>
+                            {/* Pointer-event grip: works on touch, unlike the
+                                HTML5 drag this replaces (backlog CU-08). */}
+                            <button
+                              type="button"
+                              {...reorder.gripHandlers}
+                              {...{ [REORDER_INDEX_ATTR]: i }}
+                              style={{ touchAction: "none" }}
+                              disabled={files.length < 2}
+                              aria-label={`Drag to reorder ${f.file.name}. Or use the move up and move down buttons.`}
+                              className="flex size-11 shrink-0 cursor-grab items-center justify-center rounded-lg text-faint hover:bg-fill-4 hover:text-muted active:cursor-grabbing disabled:opacity-30"
+                            >
+                              <GripVertical className="size-4" aria-hidden />
+                            </button>
+                            <span className="w-4 shrink-0 text-center font-rounded t-footnote font-semibold text-muted tabular" aria-hidden>
+                              {i + 1}
                             </span>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate t-subhead font-semibold text-ink">{f.file.name}</p>
-                            <p className={cn("flex items-center gap-1 t-footnote", f.error ? "text-danger" : "text-muted")}>
-                              {f.error && <AlertTriangle className="size-3.5 shrink-0" aria-hidden />}
-                              <span className="truncate">
-                                {f.error ??
-                                  `${f.kind === "pdf" ? (f.pages ? `PDF · ${f.pages} page${f.pages === 1 ? "" : "s"}` : "PDF") : "Image"} · ${(f.file.size / 1024 / 1024).toFixed(1)} MB`}
+                            {f.url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={f.url} alt="" className="size-12 shrink-0 rounded-xl bg-surface-2 object-cover" />
+                            ) : (
+                              <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-muted" aria-hidden>
+                                <FileText className="size-6" />
                               </span>
-                            </p>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate t-subhead font-semibold text-ink">{f.file.name}</p>
+                              <p className={cn("flex items-center gap-1 t-footnote", f.error ? "text-danger" : "text-muted")}>
+                                {f.error && <AlertTriangle className="size-3.5 shrink-0" aria-hidden />}
+                                <span className="truncate">
+                                  {f.error ??
+                                    `${f.kind === "pdf" ? (f.pages ? `PDF · ${f.pages} page${f.pages === 1 ? "" : "s"}` : "PDF") : "Photo"} · ${(f.file.size / 1024 / 1024).toFixed(1)} MB`}
+                                </span>
+                              </p>
+                              {gate && gate.severity !== "ok" && (
+                                <p className="mt-0.5 flex items-center gap-1.5">
+                                  <Badge tone={gate.tone}>{gate.badge}</Badge>
+                                  <span className="truncate t-caption text-muted">{gate.advice}</span>
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex shrink-0 items-center">
+                              {f.kind === "image" && (
+                                <Button variant="plain" size="icon" className="size-11" onClick={() => setEditing(f)} aria-label={`Crop and rotate ${f.file.name}`}>
+                                  <Crop />
+                                </Button>
+                              )}
+                              <Button variant="plain" size="icon" className="size-11" onClick={() => move(i, i - 1)} disabled={i === 0} aria-label={`Move ${f.file.name} up`}>
+                                <ArrowUp />
+                              </Button>
+                              <Button
+                                variant="plain"
+                                size="icon"
+                                className="size-11"
+                                onClick={() => move(i, i + 1)}
+                                disabled={i === files.length - 1}
+                                aria-label={`Move ${f.file.name} down`}
+                              >
+                                <ArrowDown />
+                              </Button>
+                              <Button variant="plain" size="icon" className="size-11 hover:text-danger" onClick={() => remove(f.id)} aria-label={`Remove ${f.file.name}`}>
+                                <Trash2 />
+                              </Button>
+                            </div>
                           </div>
-                          <div className="flex shrink-0 items-center">
-                            <Button variant="plain" size="icon" onClick={() => move(i, -1)} disabled={i === 0} aria-label={`Move ${f.file.name} up`}>
-                              <ArrowUp />
-                            </Button>
-                            <Button variant="plain" size="icon" onClick={() => move(i, 1)} disabled={i === files.length - 1} aria-label={`Move ${f.file.name} down`}>
-                              <ArrowDown />
-                            </Button>
-                            <Button variant="plain" size="icon" className="hover:text-danger" onClick={() => remove(f.id)} aria-label={`Remove ${f.file.name}`}>
-                              <Trash2 />
-                            </Button>
-                          </div>
-                        </div>
-                        {/* Inset hairline, aligned with the text column (iOS inset-grouped style) */}
-                        {i < files.length - 1 && <span className="absolute bottom-0 left-[6.5rem] right-0 h-px bg-line" aria-hidden />}
-                      </motion.li>
-                    ))}
+                          {/* Inset hairline, aligned with the text column (iOS inset-grouped style) */}
+                          {i < files.length - 1 && <span className="absolute bottom-0 left-[6.5rem] right-0 h-px bg-line" aria-hidden />}
+                        </motion.li>
+                      );
+                    })}
                   </AnimatePresence>
                 </ul>
               </Card>
 
+              <p className="sr-only" aria-live="polite">
+                {reorder.liveMessage}
+              </p>
+
+              {photoWarning && (
+                <p className="flex items-start gap-2 rounded-2xl bg-amber-fill/12 px-3.5 py-2.5 t-footnote text-ink" aria-live="polite">
+                  <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-amber" aria-hidden /> {photoWarning}
+                </p>
+              )}
+
               {/* Inline validation, updated as files are added */}
               <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1 t-footnote" aria-live="polite">
                 <span className="flex items-center gap-1 text-muted">
-                  <ImageIcon className="size-3.5" aria-hidden /> Drag rows or use the arrows to set page order
+                  <ImageIcon className="size-3.5" aria-hidden /> Drag the grip, or use the arrows, to set page order
                 </span>
                 <span className={cn("flex items-center gap-1 tabular", overTotal ? "font-semibold text-danger" : problemFiles ? "text-amber" : "text-muted")}>
                   {overTotal ? (
@@ -671,6 +826,42 @@ export function CreateFlow({
           <p className="px-1 t-footnote text-muted">Files are stored privately and only used to build your quest. You can delete them any time from the dashboard.</p>
         </section>
       </div>
+
+      {/* Multi-page capture. The sheet owns the camera and hands back pages
+          that are already normalized, measured and under the byte limit. */}
+      <CameraSheet
+        open={cameraOpen}
+        onOpenChange={setCameraOpen}
+        remainingSlots={Math.max(0, limits.maxFiles - files.length)}
+        onDone={(pages) => setFiles((prev) => [...prev, ...pages.map(localFileFromPage)])}
+        onFallbackUpload={() => captureRef.current?.click()}
+      />
+
+      {/* Re-crop any photo already in the list, camera or picker. */}
+      <CropEditor
+        open={!!editing}
+        page={
+          editing && editing.url
+            ? {
+                id: editing.id,
+                file: editing.file,
+                url: editing.url,
+                // Dimensions are read from the decoded image inside the editor;
+                // the row only knows the bytes.
+                width: 0,
+                height: 0,
+                bytes: editing.file.size,
+                quality: editing.quality ?? null,
+                kept: !!editing.kept,
+                source: "file",
+                overBudget: false,
+                tooSmall: false,
+              }
+            : null
+        }
+        onOpenChange={(o) => !o && setEditing(null)}
+        onApply={(page) => editing && applyEdit(editing.id, page)}
+      />
     </div>
   );
 }

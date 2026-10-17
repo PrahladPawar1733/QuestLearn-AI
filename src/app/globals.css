@@ -2,102 +2,126 @@
 @import "katex/dist/katex.min.css";
 
 /* ==================================================================
-   QuestLearn design tokens, Apple-style.
-   Semantic system colors that adapt to light and dark, grouped
-   backgrounds, translucent materials, and per-size type styles.
+   QuestLearn design tokens - "Woad & Paper".
+   Apple's token architecture (semantic colors, grouped backgrounds,
+   translucent materials, per-size type styles) with a natural palette:
+   warm paper/bark neutrals, a woad-indigo accent, and earth pigments
+   (leaf, iron oxide, honey, slate water) instead of iOS system colors.
+
+   Neutral temperature: WARM throughout. Every neutral sits on a low
+   chroma warm axis (hue ~35-45deg), light and dark alike, so the UI
+   reads like paper and bark rather than plastic and ash.
+
+   Two families of hue tokens, and the distinction matters:
+     * TEXT colors   (--green, --red, --orange, --cyan) flip polarity
+       between modes: deep pigment on paper, light pigment on bark.
+       They are only ever used for text/icons on a background.
+     * FILL colors   (--green-fill, --red-fill, --orange-fill, --blue,
+       --teal, --purple, --pink) stay mid-deep in BOTH modes, because
+       call sites put hard-coded white on them. Every fill holds
+       >= 4.5:1 with white and >= 3:1 against the page background.
+   See docs/design-system.md for the measured contrast tables.
    ================================================================== */
 
 :root {
   color-scheme: light dark;
 
-  /* --- Light (default) --- */
-  --bg: #f2f2f7; /* systemGroupedBackground */
-  --surface: #ffffff; /* secondarySystemGroupedBackground: cards */
-  --surface-2: #f2f2f7; /* tertiary: wells inside cards */
-  --surface-3: #e5e5ea; /* systemGray5 */
-  --bg-2: #f2f2f7;
+  /* --- Light (default): daylight on paper --- */
+  --bg: #f3efe6; /* limestone paper, grouped background */
+  --surface: #fdfbf6; /* warm page white: cards (never pure #fff) */
+  --surface-2: #efe9dd; /* oat: wells inside cards */
+  --surface-3: #e2dacb; /* sand: tracks, grabbers, inactive rails */
+  --bg-2: #f3efe6;
 
-  --text: #000000; /* label */
-  --muted: rgb(60 60 67 / 0.62); /* secondaryLabel (slightly raised for legibility) */
-  --faint: rgb(60 60 67 / 0.45); /* tertiaryLabel, raised: non-essential text only */
-  --line: rgb(60 60 67 / 0.18); /* separator */
-  --line-strong: #c6c6c8; /* opaqueSeparator */
+  --text: #211d17; /* bark, not black - 14.6:1 on --bg */
+  --muted: #5b5346; /* driftwood - 6.6:1 on --bg */
+  --faint: #7e7566; /* stone - 4.0:1 on --bg, non-essential text only */
+  --line: rgb(97 86 68 / 0.2); /* warm separator */
+  --line-strong: #cdc4b1; /* opaque separator */
 
-  --fill: rgb(120 120 128 / 0.2); /* systemFill */
-  --fill-2: rgb(120 120 128 / 0.16);
-  --fill-3: rgb(118 118 128 / 0.12);
-  --fill-4: rgb(116 116 128 / 0.08);
+  --fill: rgb(118 104 82 / 0.2); /* warm neutral fills */
+  --fill-2: rgb(118 104 82 / 0.16);
+  --fill-3: rgb(118 104 82 / 0.12);
+  --fill-4: rgb(118 104 82 / 0.08);
 
-  --tint: #5856d6; /* systemIndigo: app accent */
-  --tint-pressed: #4746b8;
-  --on-tint: #ffffff;
-  --blue: #007aff;
-  --cyan: #0a96c8; /* systemCyan, darkened for text contrast on white */
-  --teal: #30b0c7;
-  --green: #248a3d; /* accessible green for text */
-  --green-fill: #34c759;
-  --red: #d70015;
-  --red-fill: #ff3b30;
-  --orange: #c93400;
-  --orange-fill: #ff9500;
-  --yellow: #ffcc00;
-  --purple: #af52de;
-  --pink: #ff2d55;
-  /* Chart series 2: validated with series 1 (tint) in both modes (dataviz palette check). */
-  --chart-2: #26a0b4;
+  --tint: #3c4f85; /* WOAD: the one accent. Indigo-dye blue, 7.7:1 on --surface */
+  --tint-pressed: #2e3f6b;
+  --on-tint: #fdfbf6; /* warm white on woad: 7.7:1 */
+  --blue: #1f6a93; /* open sky, fill (white text 5.9:1) */
+  --cyan: #0c5e70; /* glacier water, text */
+  --teal: #1a6f66; /* deep pool, fill (white text 6.0:1) */
+  --green: #3b6614; /* leaf, text */
+  --green-fill: #4a7f28; /* moss, fill (white text 4.8:1) */
+  --red: #742010; /* iron oxide, text */
+  --red-fill: #8a2c1a; /* rust, fill (white text 8.6:1) */
+  --orange: #7f4310; /* burnt ochre, text */
+  --orange-fill: #a9661a; /* honey, fill (white text 4.6:1) */
+  --yellow: #c9941a; /* pollen-ochre; decorative fill only, never text */
+  --purple: #6b4a85; /* iris, fill (white text 7.1:1) */
+  --pink: #a94a63; /* foxglove, fill (white text 5.5:1) */
+  /* Chart series 2: terracotta. Woad + terracotta is a blue/orange pair,
+     the most robust split for protan/deutan/tritan vision. */
+  --chart-2: #b0623a;
 
-  --material-chrome: rgb(249 249 249 / 0.78);
-  --material-thick: rgb(255 255 255 / 0.88);
-  --material-thin: rgb(255 255 255 / 0.6);
-  --scrim: rgb(0 0 0 / 0.28);
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px rgb(0 0 0 / 0.04);
-  --shadow-float: 0 1px 3px rgb(0 0 0 / 0.08), 0 12px 40px rgb(0 0 0 / 0.14);
-  --highlight-edge: rgb(255 255 255 / 0.6);
+  --material-chrome: rgb(250 247 240 / 0.78);
+  --material-thick: rgb(253 251 246 / 0.88);
+  --material-thin: rgb(253 251 246 / 0.6);
+  --scrim: rgb(33 29 23 / 0.32);
+  --shadow-card: 0 1px 2px rgb(58 44 24 / 0.05), 0 4px 16px rgb(58 44 24 / 0.06);
+  --shadow-float: 0 1px 3px rgb(58 44 24 / 0.09), 0 12px 40px rgb(42 32 18 / 0.16);
+  --highlight-edge: rgb(255 252 245 / 0.65);
 
   --radius: 20px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #000000;
-    --surface: #1c1c1e;
-    --surface-2: #2c2c2e;
-    --surface-3: #3a3a3c;
-    --bg-2: #2c2c2e;
+    /* --- Dark: bark and embers. Warm charcoal, never pure black. --- */
+    --bg: #15120e; /* deep bark */
+    --surface: #1f1b16; /* raised bark: cards */
+    --surface-2: #2a251e; /* wells inside cards */
+    --surface-3: #39332a; /* tracks, grabbers */
+    --bg-2: #2a251e;
 
-    --text: #ffffff;
-    --muted: rgb(235 235 245 / 0.64);
-    --faint: rgb(235 235 245 / 0.42);
-    --line: rgb(84 84 88 / 0.6);
-    --line-strong: #38383a;
+    --text: #f4efe4; /* warm parchment - 14.9:1 on --surface */
+    --muted: #b9ae9b; /* ash - 7.8:1 on --surface */
+    --faint: #8d8371; /* smoke - 4.6:1 on --surface, non-essential only */
+    --line: rgb(150 138 118 / 0.32);
+    --line-strong: #3d372d;
 
-    --fill: rgb(120 120 128 / 0.36);
-    --fill-2: rgb(120 120 128 / 0.32);
-    --fill-3: rgb(118 118 128 / 0.24);
-    --fill-4: rgb(118 118 128 / 0.18);
+    --fill: rgb(158 146 124 / 0.3);
+    --fill-2: rgb(158 146 124 / 0.26);
+    --fill-3: rgb(158 146 124 / 0.2);
+    --fill-4: rgb(158 146 124 / 0.14);
 
-    --tint: #7d7aff; /* systemIndigo (dark), lifted for contrast on #1c1c1e */
-    --tint-pressed: #6966f0;
-    --blue: #0a84ff;
-    --cyan: #64d2ff;
-    --teal: #40cbe0;
-    --green: #30d158;
-    --green-fill: #30d158;
-    --red: #ff453a;
-    --red-fill: #ff453a;
-    --orange: #ff9f0a;
-    --orange-fill: #ff9f0a;
-    --yellow: #ffd60a;
-    --purple: #bf5af2;
-    --pink: #ff375f;
+    /* The accent inverts polarity in the dark, the way Material and
+       Apple's own filled controls do: a light woad chip carrying dark
+       ink. That is the only way text-tint (58 call sites) and
+       text-on-tint on bg-tint can BOTH clear 4.5:1. */
+    --tint: #a9b7e8; /* woad, lifted - 8.7:1 on --surface */
+    --tint-pressed: #8d9ed6;
+    --on-tint: #16130f; /* bark ink on the woad chip - 9.4:1 */
+    --blue: #2a7aa6; /* fill: white text 4.7:1 */
+    --cyan: #6ec3d0; /* text */
+    --teal: #227f6f; /* fill: white text 4.9:1 */
+    --green: #a8d47c; /* leaf, lifted for text - 10.0:1 on --surface */
+    --green-fill: #468328; /* moss fill: white text 4.6:1 */
+    --red: #e18262; /* iron oxide, lifted for text - 6.2:1 */
+    --red-fill: #ab3d27; /* rust fill: white text 6.1:1 */
+    --orange: #e0aa4e; /* honey, lifted for text - 8.1:1 */
+    --orange-fill: #a66519; /* honey fill: white text 4.7:1 */
+    --yellow: #e8c45a; /* decorative fill, never text */
+    --purple: #8059a0; /* fill: white text 5.5:1 */
+    --pink: #b55570; /* fill: white text 4.6:1 */
+    --chart-2: #cf8552; /* terracotta, lifted */
 
-    --material-chrome: rgb(22 22 24 / 0.72);
-    --material-thick: rgb(28 28 30 / 0.9);
-    --material-thin: rgb(44 44 46 / 0.6);
-    --scrim: rgb(0 0 0 / 0.5);
+    --material-chrome: rgb(24 21 17 / 0.72);
+    --material-thick: rgb(31 27 22 / 0.9);
+    --material-thin: rgb(42 37 30 / 0.6);
+    --scrim: rgb(8 6 4 / 0.58);
     --shadow-card: none;
-    --shadow-float: 0 12px 40px rgb(0 0 0 / 0.5);
-    --highlight-edge: rgb(255 255 255 / 0.08);
+    --shadow-float: 0 12px 40px rgb(0 0 0 / 0.55);
+    --highlight-edge: rgb(246 238 222 / 0.07);
   }
 }
 

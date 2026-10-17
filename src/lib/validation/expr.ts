@@ -4,7 +4,7 @@
  * whitelist of functions. Every value carries its SI dimension, so adding
  * incompatible quantities (e.g. kg + m/s) is rejected.
  */
-import { DIMENSIONLESS, dimEqual, dimToString, type Dim } from "./units";
+import { DIMENSIONLESS, dimAdd, dimEqual, dimScale, dimSub, dimToString, type Dim } from "./units";
 
 export interface Quantity {
   v: number; // SI value
@@ -50,7 +50,7 @@ function tokenize(src: string): Tok[] {
 }
 
 const FUNCS: Record<string, (args: Quantity[]) => Quantity> = {
-  sqrt: ([a]) => ({ v: Math.sqrt(a.v), d: a.d.map((x) => x / 2) as Dim }),
+  sqrt: ([a]) => ({ v: Math.sqrt(a.v), d: dimScale(a.d, 0.5) }),
   abs: ([a]) => ({ v: Math.abs(a.v), d: a.d }),
   min: (args) => sameDims(args, "min") && { v: Math.min(...args.map((a) => a.v)), d: args[0].d },
   max: (args) => sameDims(args, "max") && { v: Math.max(...args.map((a) => a.v)), d: args[0].d },
@@ -89,10 +89,9 @@ export function evaluate(expression: string, vars: Record<string, Quantity>): Qu
     while (peek()?.t === "op" && (peek()!.v === "*" || peek()!.v === "/")) {
       const op = eat().v;
       const b = unary();
-      a =
-        op === "*"
-          ? { v: a.v * b.v, d: a.d.map((x, i) => x + b.d[i]) as Dim }
-          : { v: a.v / b.v, d: a.d.map((x, i) => x - b.d[i]) as Dim };
+      // Dim arithmetic goes through units.ts: the two dims may have different
+      // lengths (implicit-zero tail), so a positional map would drop exponents.
+      a = op === "*" ? { v: a.v * b.v, d: dimAdd(a.d, b.d) } : { v: a.v / b.v, d: dimSub(a.d, b.d) };
     }
     return a;
   }
@@ -114,7 +113,7 @@ export function evaluate(expression: string, vars: Record<string, Quantity>): Qu
       eat();
       const exp = unary();
       if (!dimEqual(exp.d, DIMENSIONLESS)) throw new DimensionError("Exponent must be dimensionless");
-      return { v: base.v ** exp.v, d: base.d.map((x) => x * exp.v) as Dim };
+      return { v: base.v ** exp.v, d: dimScale(base.d, exp.v) };
     }
     return base;
   }
