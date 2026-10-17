@@ -248,6 +248,19 @@ export const EMPTY_FORCE_RUSH_HUD: ForceRushHud = {
 /* the game                                                            */
 /* ------------------------------------------------------------------ */
 
+
+/**
+ * Misconceptions are stored as machine keys ("thickness-blocks-everything")
+ * so the engine can track them across attempts. A student should read a
+ * phrase, not a slug.
+ */
+function humaniseMisconception(key: string | undefined): string | undefined {
+  if (!key) return key;
+  if (key.includes(" ")) return key;
+  const words = key.replace(/[-_]+/g, " ").trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 export class ForceRushGame implements LearningGame<ForceRushHud> {
   readonly id = "force-rush" as const;
 
@@ -617,7 +630,7 @@ export class ForceRushGame implements LearningGame<ForceRushHud> {
     }
     const r = this.reveal;
     if (r) {
-      const explain = [r.misconception, r.explanation].filter(Boolean).join("\n\n");
+      const explain = [humaniseMisconception(r.misconception), r.explanation].filter(Boolean).join("\n\n");
       if (!this.revealed) {
         this.revealed = true;
         if (card.dead) {
@@ -636,7 +649,9 @@ export class ForceRushGame implements LearningGame<ForceRushHud> {
     }
     const m = this.miss;
     if (!m) return;
-    card.explain = [m.misconception, m.feedback, m.hint ? `Hint: ${m.hint}` : ""].filter(Boolean).join("\n\n");
+    card.explain = [humaniseMisconception(m.misconception), m.feedback, m.hint ? `Hint: ${m.hint}` : ""]
+      .filter(Boolean)
+      .join("\n\n");
   }
 
   /**

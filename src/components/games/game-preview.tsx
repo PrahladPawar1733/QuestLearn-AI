@@ -14,9 +14,14 @@
 import type { GameId } from "@/lib/game/types";
 
 export function GamePreview({ id }: { id: GameId }) {
-  if (id === "spider-climb") return <SpiderPreview />;
-  if (id === "force-rush") return <ForcePreview />;
-  return <div className="h-full w-full bg-[#141a2b]" />;
+  // Wrapped so the <text> inside these SVGs (option letters, the "?" sign)
+  // can never be scraped into a control's accessible name.
+  const art = id === "spider-climb" ? <SpiderPreview /> : id === "force-rush" ? <ForcePreview /> : null;
+  return (
+    <div aria-hidden="true" role="presentation" className="h-full w-full">
+      {art ?? <div className="h-full w-full bg-[#141a2b]" />}
+    </div>
+  );
 }
 
 /** Night skyline, moon, and the four lettered anchors you shoot a web at. */
