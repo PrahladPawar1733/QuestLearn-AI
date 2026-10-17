@@ -65,7 +65,7 @@ export function DeleteDataButton() {
             <Dialog.Content asChild forceMount>
               <motion.div
                 ref={contentRef}
-                className="material-thick fixed left-1/2 top-1/2 z-50 w-[min(92vw,24rem)] rounded-[1.75rem] p-6"
+                className="material-thick fixed left-1/2 top-1/2 z-50 w-[min(92vw,24rem)] rounded-2xl p-6"
                 style={{ x: "-50%", y: "-50%" }}
                 {...(reduced ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: fade } : { ...materialize, transition: spring.default })}
               >

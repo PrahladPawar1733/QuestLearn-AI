@@ -1,5 +1,5 @@
 import "server-only";
-import { GoogleGenAI, type Part } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel, type Part } from "@google/genai";
 import { z } from "zod";
 import { audit } from "../audit";
 import { config } from "../config";
@@ -40,6 +40,12 @@ export function toGeminiSchema(schema: z.ZodType): unknown {
         // an over-long response is caught by `safeParse` and fed back through
         // the repair retry. The provider simply is not told the ceiling.
         if (k === "$schema" || k === "default" || k === "additionalProperties" || k === "pattern" || k === "maxItems") continue;
+        // Vertex AI rejects large maxItems bounds on arrays of complex objects (400 INVALID_ARGUMENT,
+        // measured with gemini-3.5-flash). Zod still enforces the bound after parsing.
+        if (k === "maxItems" && typeof v === "number" && v > 10) continue;
+        // Vertex AI rejects large maxItems bounds on arrays of complex objects (400 INVALID_ARGUMENT,
+        // measured with gemini-3.5-flash). Zod still enforces the bound after parsing.
+        if (k === "maxItems" && typeof v === "number" && v > 10) continue;
         out[k] = strip(v);
       }
       return out;
@@ -47,6 +53,16 @@ export function toGeminiSchema(schema: z.ZodType): unknown {
     return node;
   };
   return strip(json);
+}
+
+/**
+ * The schema as an instruction, for unconstrained JSON mode. Vertex's constrained decoding
+ * (responseJsonSchema) randomly stalled a third of requests on gemini-3.5-flash, at every thinking
+ * level (measured 2026-10-18: 6/18 hung >60 s with a schema, 0/6 without). Replies are still
+ * validated with zod and get one repair pass, so the guarantee moves into our code.
+ */
+function schemaInstruction(schema: z.ZodType): string {
+  return `Respond with a single JSON object and nothing else. It must match this JSON Schema exactly (field names, types, required fields, enum values, array lengths):\n${JSON.stringify(toGeminiSchema(schema))}`;
 }
 
 export type InputPart =
@@ -62,10 +78,58 @@ interface GenerateOpts<T extends z.ZodType> {
   model?: string;
   temperature?: number;
   timeoutMs?: number;
+  /** Lower thinking = faster replies. For latency-sensitive calls where correctness is already fixed. */
+  thinking?: "minimal" | "low";
   ownerId?: string;
   inputRefs?: string[];
   /** Max retries on transient errors (timeout, 429, 5xx). */
   retries?: number;
+  /**
+   * Start an identical backup request if the first hasn't answered by then, and use whichever
+   * finishes first. Vertex occasionally stalls a request that normally takes seconds; without this
+   * a stall costs the whole timeout before the retry even starts. Set to ~3x the normal latency.
+   */
+  hedgeAfterMs?: number;
+}
+
+/**
+ * Runs `start`, and if `hedgeAfterMs` passes without an answer, runs it again in parallel.
+ * The first success wins and the other request is aborted. Rejects only when nothing is left in flight.
+ */
+export function hedged<T>(start: (signal: AbortSignal) => Promise<T>, hedgeAfterMs: number | undefined, outer: AbortSignal): Promise<T> {
+  const controllers: AbortController[] = [];
+  return new Promise<T>((resolve, reject) => {
+    let inFlight = 0;
+    let done = false;
+    let hedgeTimer: ReturnType<typeof setTimeout> | undefined;
+    const finish = (winner?: AbortController) => {
+      done = true;
+      if (hedgeTimer) clearTimeout(hedgeTimer);
+      controllers.forEach((c) => c !== winner && c.abort());
+    };
+    const launch = () => {
+      const c = new AbortController();
+      controllers.push(c);
+      if (outer.aborted) c.abort();
+      else outer.addEventListener("abort", () => c.abort(), { once: true });
+      inFlight++;
+      start(c.signal).then(
+        (v) => {
+          if (done) return;
+          finish(c);
+          resolve(v);
+        },
+        (e) => {
+          inFlight--;
+          if (done || inFlight > 0) return;
+          finish();
+          reject(e);
+        },
+      );
+    };
+    if (hedgeAfterMs) hedgeTimer = setTimeout(() => !done && launch(), hedgeAfterMs);
+    launch();
+  });
 }
 
 /**
@@ -151,6 +215,7 @@ export async function generateJson<T extends z.ZodType>(opts: GenerateOpts<T>): 
   const model = opts.model ?? config.model;
   const started = Date.now();
   const maxTransient = opts.retries ?? 2;
+  const constrained = config.aiConstrainedJson;
   let transientRetries = 0;
   let repairAttempted = false;
   let feedback: string | null = null;
@@ -175,17 +240,23 @@ export async function generateJson<T extends z.ZodType>(opts: GenerateOpts<T>): 
         );
       }
       if (feedback) parts.push({ text: `Your previous response was rejected by validation: ${feedback}\nReturn corrected JSON only.` });
-      const res = await ai.models.generateContent({
-        model,
-        contents: [{ role: "user", parts }],
-        config: {
-          systemInstruction: opts.system,
-          temperature: opts.temperature ?? 0.4,
-          responseMimeType: "application/json",
-          responseJsonSchema: toGeminiSchema(opts.schema),
-          abortSignal: controller.signal,
-        },
-      });
+      const res = await hedged(
+        (signal) =>
+          ai.models.generateContent({
+            model,
+            contents: [{ role: "user", parts }],
+            config: {
+              systemInstruction: constrained ? opts.system : `${opts.system}\n\n${schemaInstruction(opts.schema)}`,
+              temperature: opts.temperature ?? 0.4,
+              responseMimeType: "application/json",
+              ...(constrained ? { responseJsonSchema: toGeminiSchema(opts.schema) } : {}),
+              abortSignal: signal,
+              ...(opts.thinking ? { thinkingConfig: { thinkingLevel: opts.thinking === "minimal" ? ThinkingLevel.MINIMAL : ThinkingLevel.LOW } } : {}),
+            },
+          }),
+        opts.hedgeAfterMs,
+        controller.signal,
+      );
       clearTimeout(timer);
       const text = res.text ?? "";
       let parsed: unknown;

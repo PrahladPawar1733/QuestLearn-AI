@@ -103,6 +103,24 @@ export const ReviewOut = z.object({
 });
 export type ReviewOut = z.infer<typeof ReviewOut>;
 
+/** End-of-run coaching report: one entry per concept the student slipped on. */
+export const ReportOut = z.object({
+  summary: z.string().describe("2-3 sentences, second person: how the run went and the single most important thing to work on"),
+  focus: z
+    .array(
+      z.object({
+        conceptId: z.string().describe("Exactly one of the concept ids given"),
+        whatWentWrong: z.string().describe("The pattern behind the student's wrong answers on this concept, in 1-2 sentences. Name the misunderstanding, don't just restate the question."),
+        keyIdea: z.string().describe("The one idea to learn so it doesn't happen again, 1-2 sentences, $...$ for maths"),
+        nextSteps: z.array(z.string()).min(1).max(3).describe("Concrete actions, each one short sentence: what to re-read (cite the page label), what kind of problem to redo, what to check"),
+        sourceRef: z.string().describe("Page label from the notes to revisit, or empty string"),
+      }),
+    )
+    .max(6),
+  strengths: z.string().describe("One sentence on what went well, or empty string if nothing did"),
+});
+export type ReportOut = z.infer<typeof ReportOut>;
+
 export const TutorOut = z.object({
   simpleExplanation: z.string(),
   whyWrong: z.string(),

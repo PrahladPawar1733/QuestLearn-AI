@@ -38,6 +38,7 @@ describe("adaptive learning loop (demo mode, no AI)", () => {
       const q = s.current!;
       const r = await play.submitAnswer(uid, s.session.id, q.id, keyFor(q.id));
       expect(r.isCorrect).toBe(true);
+      expect(r.hint).toBeUndefined();
       expect(r.xpAwarded).toBeGreaterThanOrEqual(100);
       s = await play.advance(uid, s.session.id);
     }
@@ -53,6 +54,9 @@ describe("adaptive learning loop (demo mode, no AI)", () => {
     expect(wrong.nextAction).toBe("tutor");
     expect(wrong.xpAwarded).toBe(0);
     expect(wrong.correctOptionId).toBe(keyFor(q.id));
+    // The hint rides along with a wrong answer: the question is closed, so /hint would now refuse.
+    expect(wrong.hint).toBe(demo.demoQuestions().find((x) => x.id === q.id)!.hint);
+    await expect(play.takeHint(uid, v.session.id, q.id)).rejects.toMatchObject({ code: "NOT_CURRENT" });
 
     // Duplicate submission returns the same stored result, no double counting.
     const dup = await play.submitAnswer(uid, v.session.id, q.id, keyFor(q.id));

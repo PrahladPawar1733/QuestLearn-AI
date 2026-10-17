@@ -1,6 +1,6 @@
 import "server-only";
 import { aiAvailable } from "../ai/client";
-import { designQuestions, extractChapter, transcribeMaterial, type ModelFile } from "../ai/workflows";
+import { designQuestions, extractChapter, PAGES_PER_READ, readBatches, transcribeMaterial, type ModelFile } from "../ai/workflows";
 import { config } from "../config";
 import { db } from "../db";
 import { AppError, Errors } from "../errors";
@@ -74,26 +74,54 @@ function keyFromPath(p: string) {
   return p.replace(/^local:\/\//, "").replace(/^gs:\/\/[^/]+\//, "");
 }
 
+/** Max inline bytes per model request (Vertex allows ~20 MB). */
+const MAX_INLINE_BYTES = 18 * 1024 * 1024;
+
+/** Cuts a PDF into page-range pieces so each reading batch stays small. */
+export async function splitPdf(buf: Buffer, pdfN: number, pageCount: number): Promise<ModelFile[]> {
+  const { PDFDocument } = await import("pdf-lib");
+  const src = await PDFDocument.load(buf, { updateMetadata: false });
+  const out: ModelFile[] = [];
+  for (let start = 0; start < pageCount; start += PAGES_PER_READ) {
+    const end = Math.min(pageCount, start + PAGES_PER_READ);
+    const piece = await PDFDocument.create();
+    const pages = await piece.copyPages(src, Array.from({ length: end - start }, (_, i) => start + i));
+    pages.forEach((p) => piece.addPage(p));
+    const bytes = Buffer.from(await piece.save());
+    const ref = end - start === 1 ? `PDF ${pdfN}, page ${start + 1}` : `PDF ${pdfN}, pages ${start + 1}-${end} of ${pageCount}`;
+    out.push({ ref, mimeType: "application/pdf", base64: bytes.toString("base64"), pages: end - start });
+  }
+  return out;
+}
+
 async function modelFiles(m: Material): Promise<ModelFile[]> {
   const out: ModelFile[] = [];
   let pdfN = 0;
   let imgN = 0;
-  let inlineBytes = 0;
   for (const f of m.files) {
     const isPdf = f.mimeType === "application/pdf";
-    const ref = isPdf ? `PDF ${++pdfN} (${f.pageCount ?? "?"} pages)` : `Image ${++imgN}`;
+    const n = isPdf ? ++pdfN : ++imgN;
     const path = f.processedPath ?? f.storagePath;
     const mimeType = f.processedPath ? "image/jpeg" : f.mimeType;
+    const pages = isPdf ? (f.pageCount ?? 1) : 1;
+    // Longer PDFs are read in page ranges, in parallel (see PAGES_PER_READ).
+    if (isPdf && pages > PAGES_PER_READ) {
+      out.push(...(await splitPdf(await blobs().get(keyFromPath(path)), n, pages)));
+      continue;
+    }
+    const ref = isPdf ? `PDF ${n} (${f.pageCount ?? "?"} pages)` : `Image ${n}`;
     if (config.aiMode === "vertex" && path.startsWith("gs://")) {
-      out.push({ ref, mimeType, fileUri: path });
+      out.push({ ref, mimeType, fileUri: path, pages });
       continue;
     }
     const buf = await blobs().get(keyFromPath(path));
-    inlineBytes += buf.length;
-    out.push({ ref, mimeType, base64: buf.toString("base64") });
+    out.push({ ref, mimeType, base64: buf.toString("base64"), pages });
   }
-  if (inlineBytes > 18 * 1024 * 1024) {
-    throw new AppError("TOO_LARGE_FOR_AI", "This upload is too large to analyze in one go. Split the chapter into smaller uploads (under ~18 MB).", 413);
+  for (const b of readBatches(out)) {
+    const bytes = b.reduce((s, f) => s + (f.base64 ? (f.base64.length * 3) / 4 : 0), 0);
+    if (bytes > MAX_INLINE_BYTES) {
+      throw new AppError("TOO_LARGE_FOR_AI", "Some pages are too large to analyze. Split the chapter into smaller uploads, or use smaller photos.", 413);
+    }
   }
   return out;
 }
@@ -181,7 +209,7 @@ export async function generateQuestForMaterial(uid: string, materialId: string) 
     const questId = newId("qst");
     const concepts = await db().list<Concept>("concepts", { materialId: m.id });
     const conceptKeyById = Object.fromEntries(concepts.map((c) => [c.id, c.key ?? c.id]));
-    await save(m, { stage: "questions", error: undefined });
+    await save(m, { stage: "questions", error: undefined, progress: undefined });
     let accepted: Question[] = [];
     let rejectedCount = 0;
     try {
@@ -193,6 +221,7 @@ export async function generateQuestForMaterial(uid: string, materialId: string) 
         concepts,
         conceptKeyById,
         ownerId: uid,
+        onProgress: (progress) => save(m, { progress }),
       });
       accepted = set.accepted;
       rejectedCount = set.rejected.length;

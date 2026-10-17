@@ -63,20 +63,20 @@ export default async function LearnPage(props: PageProps<"/learn/[conceptId]">) 
           <CardContent>
             {practised ? (
               <>
-                <p className="font-rounded text-[2.5rem] font-bold leading-none tracking-tight text-ink tabular">
+                <p className="text-[2.5rem] font-semibold leading-none tracking-tight text-ink tabular">
                   {mastery.masteryScore}
                   <span className="ml-0.5 text-xl font-semibold text-muted">%</span>
                 </p>
                 <Progress value={mastery.masteryScore} tone={masteryTone(mastery.masteryScore)} className="mt-3 h-2" label={`${concept.title} mastery`} />
                 <div className="mt-4 grid grid-cols-2 gap-2">
-                  <div className="rounded-2xl bg-surface-2 px-4 py-3">
-                    <p className="font-rounded t-title3 font-bold text-ink tabular">
+                  <div className="border-l border-line pl-3">
+                    <p className="t-title3 text-ink tabular">
                       {mastery.correctAttempts}/{mastery.attempts}
                     </p>
                     <p className="t-footnote text-muted">correct</p>
                   </div>
-                  <div className="rounded-2xl bg-surface-2 px-4 py-3">
-                    <p className="font-rounded t-title3 font-bold text-ink tabular">
+                  <div className="border-l border-line pl-3">
+                    <p className="t-title3 text-ink tabular">
                       {mastery.followUpCorrect}/{mastery.followUpAttempts}
                     </p>
                     <p className="t-footnote text-muted">follow-ups fixed</p>

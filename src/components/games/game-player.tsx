@@ -105,6 +105,8 @@ export function GamePlayer({ initial, module: mod, concepts = [] }: Props) {
   const openQuestionRef = useRef<GameQuestion | null>(null);
   /** Wrong attempts on the current in-game question (first miss = retry). */
   const gameAttemptsRef = useRef(0);
+  /** The scored first attempt, while the game offers a second try on the same question. */
+  const firstMissRef = useRef<SettledAnswer | null>(null);
   /** Set after a second miss, to show the explanation over the game. */
   const [inGameResult, setInGameResult] = useState<SettledAnswer | null>(null);
   /** Bound inside the mount effect so the HUD can score and advance. */
@@ -228,6 +230,9 @@ export function GamePlayer({ initial, module: mod, concepts = [] }: Props) {
             return;
           }
           haptic("selection");
+          // A new question: its misses start from zero.
+          gameAttemptsRef.current = 0;
+          firstMissRef.current = null;
           if (mod.presentsOwnQuestions) {
             // The game draws the question itself; play continues.
             openQuestionRef.current = q;
@@ -323,22 +328,34 @@ export function GamePlayer({ initial, module: mod, concepts = [] }: Props) {
       // animation (which anchor the web took) matches the student's choice.
       (game as unknown as { noteChoice?: (id: string) => void }).noteChoice?.(optionId);
       try {
-        const result = await director.answer(optionId, { kind: "none" });
+        // The server scores a question once: re-sending it returns the first (wrong) result, so
+        // the second try is judged here against the key that first answer returned. Score and
+        // mastery keep the first attempt, which is the honest record.
+        const first = firstMissRef.current?.question.id === q.id ? firstMissRef.current : null;
+        const result: SettledAnswer = first
+          ? { ...first, correct: optionId === first.correctOptionId, selectedOptionId: optionId, xpAwarded: 0, achievements: [] }
+          : await director.answer(optionId, { kind: "none" });
+        firstMissRef.current = null;
         game.settleQuestion?.(result.correct, result.correctOptionId);
         if (result.correct) {
           openQuestionRef.current = null;
+          gameAttemptsRef.current = 0;
           setInGameResult(null);
           director.close();
         } else if (gameAttemptsRef.current >= 1) {
           // Second miss: now show the explanation, because the thinking is done.
+          // The question is finished, so close it and warm the next one.
           openQuestionRef.current = null;
           gameAttemptsRef.current = 0;
+          director.close();
           const correctText = result.question.options.find((o) => o.id === result.correctOptionId);
           const setReveal = (game as unknown as { setReveal?: (r: unknown) => void }).setReveal;
           if (setReveal) {
             // A page-layout game renders the explanation itself, in its own
             // visual language, rather than in a modal over the top.
-            setReveal({
+            // `.call(game)`: it is a class method, and called bare `this` is undefined, so it
+            // threw (silently, into the catch below) after the question was already closed.
+            setReveal.call(game, {
               correctText: correctText ? `${correctText.id}. ${correctText.text}` : "",
               explanation: result.explanation,
               misconception: result.misconception?.feedback,
@@ -349,22 +366,20 @@ export function GamePlayer({ initial, module: mod, concepts = [] }: Props) {
         } else {
           // First miss: the game rules that option out and lets them retry.
           gameAttemptsRef.current += 1;
+          firstMissRef.current = result;
           const setMiss = (game as unknown as { setMiss?: (m: unknown) => void }).setMiss;
           setMiss?.call(game, {
             misconception: result.misconception?.misconception,
             feedback: result.misconception?.feedback,
           });
-          // Fetch the hint too: a second attempt deserves real help, not just
-          // "try again".
-          if (result.question.hasHint) {
-            void director
-              .hint()
-              .then((hint) => setMiss?.call(game, {
-                misconception: result.misconception?.misconception,
-                feedback: result.misconception?.feedback,
-                hint,
-              }))
-              .catch(() => undefined);
+          // Show the hint too: a second attempt deserves real help, not just
+          // "try again". It arrives with the wrong-answer result.
+          if (result.hint) {
+            setMiss?.call(game, {
+              misconception: result.misconception?.misconception,
+              feedback: result.misconception?.feedback,
+              hint: result.hint,
+            });
           }
         }
       } catch (e) {

@@ -1,27 +1,20 @@
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 
-/** App icon: a continuous-corner tile in the app tint with a play-lens glyph. */
+/** Simple mark: an ink square with a play notch. Used for the favicon and small spots. */
 export function LogoMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 32 32" className={cn("size-7", className)} aria-hidden>
-      <defs>
-        <linearGradient id="qlg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#a9b7e8" />
-          <stop offset="1" stopColor="#3c4f85" />
-        </linearGradient>
-      </defs>
-      <rect x="0" y="0" width="32" height="32" rx="8" fill="url(#qlg)" />
-      <path d="M16 7.5a8.5 8.5 0 1 0 5.4 15.06l2.6 2.6 2.1-2.1-2.6-2.6A8.5 8.5 0 0 0 16 7.5Zm0 3a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11Z" fill="#fff" />
-      <path d="m14.6 13.2 4 2.8-4 2.8z" fill="#fff" />
+    <svg viewBox="0 0 32 32" className={cn("size-6", className)} aria-hidden>
+      <rect width="32" height="32" rx="8" fill="currentColor" />
+      <path d="m13 10.5 9 5.5-9 5.5z" fill="var(--bg)" />
     </svg>
   );
 }
 
 export function Logo({ className }: { className?: string }) {
   return (
-    <Link href="/" className={cn("pressable flex items-center gap-2 t-headline text-ink", className)} aria-label="QuestLearn AI home">
-      <LogoMark />
+    <Link href="/" className={cn("flex items-center gap-2 text-[0.9375rem] font-semibold tracking-tight text-ink", className)} aria-label="QuestLearn home">
+      <LogoMark className="size-5" />
       <span>QuestLearn</span>
     </Link>
   );

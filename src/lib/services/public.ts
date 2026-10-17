@@ -39,6 +39,7 @@ export function publicMaterial(m: Material) {
     completedStages: m.completedStages,
     error: m.error,
     questId: m.questId,
+    progress: m.progress,
     files: m.files.map((f) => ({ index: f.index, name: f.originalName, mimeType: f.mimeType, sizeBytes: f.sizeBytes, pageCount: f.pageCount })),
     extracted: m.extracted,
     createdAt: m.createdAt,

@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   ArrowDown,
   ArrowUp,
-  BookOpen,
   Camera,
   Check,
   ChevronsUpDown,
@@ -33,7 +32,7 @@ import type { CapturedPage } from "@/components/capture/types";
 import { REORDER_INDEX_ATTR, REORDER_ROOT_ATTR, usePointerReorder } from "@/components/capture/use-pointer-reorder";
 import { Tex } from "@/components/math/rich-text";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { api, ApiError } from "@/lib/api-client";
@@ -77,6 +76,7 @@ interface MaterialDTO {
   completedStages: ProcessingStage[];
   error?: { code: string; message: string; stage: ProcessingStage; retryable: boolean };
   questId?: string;
+  progress?: { done: number; total: number; accepted: number };
   files: { index: number; name: string; mimeType: string; sizeBytes: number; pageCount?: number }[];
   extracted?: ExtractedContent;
 }
@@ -203,6 +203,15 @@ export function CreateFlow({
     },
     [limits.maxFileMB, limits.maxFiles],
   );
+
+  // Files picked before hydration never fired onChange; pick them up once the page is interactive.
+  useEffect(() => {
+    const el = inputRef.current;
+    if (el?.files?.length) {
+      void addFiles(el.files);
+      el.value = "";
+    }
+  }, [addFiles]);
 
   const totalMB = files.reduce((s, f) => s + f.file.size, 0) / 1024 / 1024;
   /** One move entry point for the grip drag, the arrow buttons and the keyboard. */
@@ -404,6 +413,31 @@ export function CreateFlow({
           </p>
         </header>
 
+        {/* The one action once it's ready: first thing on the page, above the chapter preview. */}
+        {ready && quest && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+            <Card className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-success-fill text-white" aria-hidden>
+                <Check className="size-5" strokeWidth={3} />
+              </span>
+              <div className="flex-1">
+                <p className="t-headline text-ink">
+                  <span className="font-rounded tabular">{quest.questionCount}</span> validated questions · <span className="font-rounded tabular">{quest.playLength}</span> per run
+                </p>
+                <p className="t-subhead text-muted">
+                  Every answer key passed our checks
+                  {quest.rejectedCount > 0 ? `; ${quest.rejectedCount} question${quest.rejectedCount === 1 ? " was" : "s were"} rejected and removed` : ""}.
+                </p>
+              </div>
+              <Button asChild size="lg">
+                <Link href={`/quest/${quest.id}`}>
+                  <Play fill="currentColor" /> Begin quest
+                </Link>
+              </Button>
+            </Card>
+          </motion.div>
+        )}
+
         {!ready && (
           <Card>
             <ol className="py-1" aria-live="polite" aria-label="Processing steps">
@@ -417,6 +451,15 @@ export function CreateFlow({
                       <p className={cn("t-footnote", st === "failed" ? "text-danger" : "text-muted")}>
                         {st === "done" ? "Done" : st === "active" ? s.detail : st === "failed" ? "Stopped here" : "Waiting"}
                       </p>
+                      {st === "active" && s.id === "questions" && material.progress && material.progress.total > 0 && (
+                        <div className="mt-2 space-y-1">
+                          <Progress value={(material.progress.done / material.progress.total) * 100} label="Question batches checked" />
+                          <p className="t-caption text-muted tabular">
+                            {material.progress.done} of {material.progress.total} batches checked · {material.progress.accepted} question
+                            {material.progress.accepted === 1 ? "" : "s"} passed so far
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </li>
                 );
@@ -463,29 +506,6 @@ export function CreateFlow({
 
         {material.extracted && <ChapterPreview content={material.extracted} />}
 
-        {ready && quest && (
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-            <Card className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
-              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-success-fill text-on-tint" aria-hidden>
-                <Check className="size-5" strokeWidth={3} />
-              </span>
-              <div className="flex-1">
-                <p className="t-headline text-ink">
-                  <span className="font-rounded tabular">{quest.questionCount}</span> validated questions · <span className="font-rounded tabular">{quest.playLength}</span> per run
-                </p>
-                <p className="t-subhead text-muted">
-                  Every answer key passed our checks
-                  {quest.rejectedCount > 0 ? `; ${quest.rejectedCount} question${quest.rejectedCount === 1 ? " was" : "s were"} rejected and removed` : ""}.
-                </p>
-              </div>
-              <Button asChild size="lg">
-                <Link href={`/quest/${quest.id}`}>
-                  <Play fill="currentColor" /> Begin quest
-                </Link>
-              </Button>
-            </Card>
-          </motion.div>
-        )}
       </div>
     );
   }
@@ -498,17 +518,16 @@ export function CreateFlow({
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <header>
-        <h1 className="t-large-title text-ink">Create a quest from your notes</h1>
-        <p className="mt-1 t-subhead text-muted">Add photos of handwritten notes or a PDF of one chapter. The defaults work, so you only need to add files.</p>
+        <h1 className="t-large-title text-ink">New quest</h1>
+        <p className="mt-2 t-body text-muted">Add photos or a PDF of one chapter. Everything else is optional.</p>
       </header>
 
       {!aiAvailable && (
-        <div className="flex flex-col gap-3 rounded-2xl bg-amber-fill/12 p-4 sm:flex-row sm:items-center">
-          <AlertTriangle className="size-5 shrink-0 text-amber" aria-hidden />
-          <p className="t-subhead text-ink">
-            <span className="font-semibold">Demo mode:</span> this server has no Gemini credentials. Uploads are validated and stored, but analysis needs AI to be configured. The prepared demo quest works fully.
+        <div className="flex flex-col gap-3 border-y border-line py-3 sm:flex-row sm:items-center">
+          <p className="t-subhead text-muted">
+            <span className="font-medium text-amber">Demo mode.</span> AI isn&apos;t configured on this server, so uploads can&apos;t be analyzed yet. The sample quest works fully.
           </p>
-          <Button asChild variant="amber" size="sm" className="shrink-0 self-start sm:ml-auto sm:self-center">
+          <Button asChild variant="secondary" size="sm" className="shrink-0 self-start sm:ml-auto sm:self-center">
             <Link href={`/quest/${DEMO_QUEST_ID}`}>Play demo</Link>
           </Button>
         </div>
@@ -530,68 +549,73 @@ export function CreateFlow({
             animate={{ scale: dragOver ? 1.01 : 1 }}
             transition={spring.snappy}
             className={cn(
-              "flex flex-col items-center justify-center rounded-card border-2 border-dashed px-6 py-10 text-center transition-colors",
-              dragOver ? "border-tint bg-tint/8" : "border-line-strong bg-surface",
+              "flex flex-col items-center justify-center rounded-2xl border border-dashed px-6 py-12 text-center transition-colors",
+              dragOver ? "border-tint bg-fill-4" : "border-line-strong bg-surface",
             )}
           >
-            <span className={cn("flex size-14 items-center justify-center rounded-full transition-colors", dragOver ? "bg-tint text-on-tint" : "bg-tint/14 text-tint")} aria-hidden>
-              <UploadCloud className="size-7" />
-            </span>
-            <p className="mt-4 t-headline text-ink">{dragOver ? "Release to add" : "Photograph your notes, or add a file"}</p>
+            <p className="t-headline text-ink">{dragOver ? "Release to add" : "Drop your notes here"}</p>
             <p className="mt-1 t-footnote text-muted">
               PDF, JPG, PNG or WebP · up to {limits.maxFileMB} MB each, {limits.maxFiles} files, {limits.maxTotalMB} MB total
             </p>
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+              {/* Hidden inputs come first so the label below can use `peer` for its focus ring. */}
+              <input
+                ref={inputRef}
+                id="ql-file-input"
+                type="file"
+                multiple
+                accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
+                className="peer sr-only"
+                onChange={(e) => {
+                  if (e.target.files) void addFiles(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+              {/* The mobile fallback, and the escape hatch the camera sheet uses
+                  when getUserMedia fails: the OS camera app hands back a file. */}
+              <input
+                ref={captureRef}
+                type="file"
+                accept="image/*"
+                // No `multiple`: with `capture` set, browsers that honour it open
+                // the camera for a single shot, and the ones that ignore it fall
+                // back to the picker — `multiple` only muddies that.
+                capture="environment"
+                className="sr-only"
+                aria-label="Take a photo of your notes with your device camera"
+                onChange={(e) => {
+                  if (e.target.files) void addFiles(e.target.files);
+                  e.target.value = "";
+                }}
+              />
               {/* Live camera when the browser can open one... */}
               {cameraSupported && (
-                <Button className="h-11" onClick={() => setCameraOpen(true)} disabled={files.length >= limits.maxFiles}>
+                <Button variant="secondary" onClick={() => setCameraOpen(true)} disabled={files.length >= limits.maxFiles}>
                   <Camera /> Use camera
                 </Button>
               )}
               {/* ...and the OS camera app when it cannot. Same destination. */}
               {!cameraSupported && (
-                <Button className="h-11" onClick={() => captureRef.current?.click()} disabled={files.length >= limits.maxFiles}>
+                <Button variant="secondary" onClick={() => captureRef.current?.click()} disabled={files.length >= limits.maxFiles}>
                   <Camera /> Take a photo
                 </Button>
               )}
-              <Button variant="tinted" className="h-11" onClick={() => inputRef.current?.click()}>
+              {/* A native label opens the picker without JavaScript, so it works before hydration. */}
+              <label
+                htmlFor="ql-file-input"
+                className={cn(
+                  buttonVariants({ variant: "tinted" }),
+                  "cursor-pointer peer-focus-visible:outline-3 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-tint/70",
+                )}
+              >
                 Choose files
-              </Button>
+              </label>
             </div>
             {preparing > 0 && (
               <p className="mt-3 flex items-center gap-1.5 t-footnote text-muted" aria-live="polite">
                 <Loader2 className="size-3.5 animate-spin" aria-hidden /> Getting {preparing} photo{preparing === 1 ? "" : "s"} ready…
               </p>
             )}
-            <input
-              ref={inputRef}
-              type="file"
-              multiple
-              accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
-              className="sr-only"
-              aria-label="Choose files to upload"
-              onChange={(e) => {
-                if (e.target.files) void addFiles(e.target.files);
-                e.target.value = "";
-              }}
-            />
-            {/* The mobile fallback, and the escape hatch the camera sheet uses
-                when getUserMedia fails: the OS camera app hands back a file. */}
-            <input
-              ref={captureRef}
-              type="file"
-              accept="image/*"
-              // No `multiple`: with `capture` set, browsers that honour it open
-              // the camera for a single shot, and the ones that ignore it fall
-              // back to the picker — `multiple` only muddies that.
-              capture="environment"
-              className="sr-only"
-              aria-label="Take a photo of your notes with your device camera"
-              onChange={(e) => {
-                if (e.target.files) void addFiles(e.target.files);
-                e.target.value = "";
-              }}
-            />
           </motion.div>
 
           {files.length > 0 && (
@@ -690,7 +714,7 @@ export function CreateFlow({
               </p>
 
               {photoWarning && (
-                <p className="flex items-start gap-2 rounded-2xl bg-amber-fill/12 px-3.5 py-2.5 t-footnote text-ink" aria-live="polite">
+                <p className="flex items-start gap-2 rounded-2xl bg-surface-2 px-3.5 py-2.5 t-footnote text-ink" aria-live="polite">
                   <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-amber" aria-hidden /> {photoWarning}
                 </p>
               )}
@@ -814,16 +838,16 @@ export function CreateFlow({
           {uploadPct !== null ? (
             <div className="space-y-2 rounded-2xl bg-surface px-4 py-3.5" aria-live="polite">
               <p className="flex items-center gap-2 t-subhead text-ink">
-                <Loader2 className="size-4 animate-spin text-tint" aria-hidden /> Uploading… <span className="ml-auto font-rounded font-semibold tabular">{uploadPct}%</span>
+                <Loader2 className="size-4 animate-spin text-muted" aria-hidden /> Uploading… <span className="ml-auto tabular">{uploadPct}%</span>
               </p>
               <Progress value={uploadPct} label="Upload progress" />
             </div>
           ) : (
             <Button size="lg" className="w-full" onClick={upload} disabled={files.length === 0}>
-              <BookOpen /> Create my quest
+              Create quest
             </Button>
           )}
-          <p className="px-1 t-footnote text-muted">Files are stored privately and only used to build your quest. You can delete them any time from the dashboard.</p>
+          <p className="px-1 t-footnote text-faint">Files are stored privately and only used to build your quest. You can delete them from Chapters at any time.</p>
         </section>
       </div>
 
@@ -883,9 +907,9 @@ function StageIcon({ state }: { state: StageState }) {
           transition={spring.snappy}
           className={cn(
             "flex size-7 items-center justify-center rounded-full",
-            state === "done" && "bg-success-fill text-on-tint",
+            state === "done" && "bg-success-fill text-white",
             state === "active" && "text-tint",
-            state === "failed" && "bg-danger-fill text-on-tint",
+            state === "failed" && "bg-danger-fill text-white",
             state === "pending" && "border-2 border-line-strong",
           )}
         >
@@ -1024,7 +1048,7 @@ function ChapterPreview({ content }: { content: ExtractedContent }) {
         </section>
       )}
       {content.uncertain.length > 0 && (
-        <section className="rounded-2xl bg-amber-fill/12 p-4">
+        <section className="rounded-2xl bg-surface-2 p-4">
           <p className="mb-1 flex items-center gap-1.5 t-subhead font-semibold text-amber">
             <AlertTriangle className="size-4" aria-hidden /> We couldn&apos;t read everything
           </p>

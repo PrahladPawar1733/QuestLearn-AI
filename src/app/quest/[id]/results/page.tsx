@@ -20,6 +20,7 @@ export default async function ResultsPage(props: PageProps<"/quest/[id]/results"
     <AppShell>
       <ResultsView
         questId={id}
+        sessionId={sessionId}
         data={{
           quest: r.quest,
           kind: r.session.kind,

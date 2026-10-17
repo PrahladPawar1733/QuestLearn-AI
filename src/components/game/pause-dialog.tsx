@@ -36,7 +36,7 @@ export function PauseDialog({
             </Dialog.Overlay>
             <Dialog.Content asChild forceMount>
               <motion.div
-                className="material-thick fixed left-1/2 top-1/2 z-50 w-[min(92vw,22rem)] rounded-[1.75rem] p-6"
+                className="material-thick fixed left-1/2 top-1/2 z-50 w-[min(92vw,22rem)] rounded-2xl p-6"
                 style={{
                   x: "-50%",
                   y: "-50%",

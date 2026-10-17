@@ -48,6 +48,8 @@ export interface SettledAnswer {
   steps: string[];
   /** Why this specific wrong option is tempting — the misconception, named. */
   misconception?: { misconception: string; feedback: string };
+  /** Stored hint for a wrong answer, for the in-game second try. */
+  hint?: string;
   xpAwarded: number;
   mastery: AnswerResult["mastery"];
   achievements: AnswerResult["newAchievements"];
@@ -221,6 +223,7 @@ export class LearningDirector {
         explanation: r.explanation,
         steps: r.steps,
         misconception: r.selectedFeedback,
+        hint: r.hint,
         xpAwarded: r.xpAwarded,
         mastery: r.mastery,
         achievements: r.newAchievements,

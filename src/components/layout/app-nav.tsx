@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, LayoutGrid, Menu, Plus, Sparkles, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -10,19 +10,19 @@ import { cn } from "@/lib/cn";
 import { Button } from "../ui/button";
 
 const LINKS = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutGrid },
-  { href: "/progress", label: "Progress", icon: BarChart3 },
+  { href: "/dashboard", label: "Chapters" },
+  { href: "/progress", label: "Progress" },
 ];
 
-/** Translucent nav bar: content scrolls underneath; a soft scroll-edge replaces the divider. */
+/** Translucent bar, text links, one action. */
 export function AppNav({ aiAvailable }: { aiAvailable: boolean }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
   return (
-    <header className="material-chrome scroll-edge sticky top-0 z-40">
-      <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:px-6">
+    <header className="material-chrome sticky top-0 z-40 border-b border-line">
+      <div className="mx-auto flex h-14 max-w-5xl items-center gap-6 px-4 sm:px-6">
         <Logo />
-        <nav className="ml-4 hidden items-center gap-1 md:flex" aria-label="Main">
+        <nav className="hidden items-center gap-5 md:flex" aria-label="Main">
           {LINKS.map((l) => {
             const active = path.startsWith(l.href);
             return (
@@ -30,19 +30,17 @@ export function AppNav({ aiAvailable }: { aiAvailable: boolean }) {
                 key={l.href}
                 href={l.href}
                 aria-current={active ? "page" : undefined}
-                className={cn("pressable flex items-center gap-1.5 rounded-full px-3 py-1.5 t-subhead font-medium", active ? "bg-fill-3 text-ink" : "text-muted hover:text-ink")}
+                className={cn("t-subhead transition-colors", active ? "font-medium text-ink" : "text-muted hover:text-ink")}
               >
-                <l.icon className="size-4" /> {l.label}
+                {l.label}
               </Link>
             );
           })}
         </nav>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-3">
           <ModeBadge aiAvailable={aiAvailable} />
           <Button asChild size="sm" className="hidden sm:inline-flex">
-            <Link href="/create">
-              <Plus /> New Quest
-            </Link>
+            <Link href="/create">New quest</Link>
           </Button>
           <Button variant="plain" size="icon" className="md:hidden" onClick={() => setOpen((o) => !o)} aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open}>
             {open ? <X /> : <Menu />}
@@ -53,23 +51,17 @@ export function AppNav({ aiAvailable }: { aiAvailable: boolean }) {
         {open && (
           <motion.nav
             aria-label="Mobile"
-            initial={{ opacity: 0, y: -8 }}
+            initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            className="px-4 pb-3 md:hidden"
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
+            className="border-t border-line px-4 pb-2 md:hidden"
           >
-            <div className="surface overflow-hidden rounded-2xl">
-              {[...LINKS, { href: "/create", label: "New Quest", icon: Plus }].map((l, i) => (
-                <Link
-                  key={l.href}
-                  href={l.href}
-                  onClick={() => setOpen(false)}
-                  className={cn("flex items-center gap-3 px-4 py-3.5 t-body text-ink active:bg-fill-4", i > 0 && "border-t border-line")}
-                >
-                  <l.icon className="size-5 text-tint" /> {l.label}
-                </Link>
-              ))}
-            </div>
+            {[...LINKS, { href: "/create", label: "New quest" }].map((l) => (
+              <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className="block border-b border-line py-3.5 t-body text-ink last:border-0">
+                {l.label}
+              </Link>
+            ))}
           </motion.nav>
         )}
       </AnimatePresence>
@@ -77,14 +69,12 @@ export function AppNav({ aiAvailable }: { aiAvailable: boolean }) {
   );
 }
 
+/** Only worth saying when something is missing: live AI is the normal case. */
 export function ModeBadge({ aiAvailable }: { aiAvailable: boolean }) {
-  return aiAvailable ? (
-    <span className="hidden items-center gap-1 rounded-full bg-success-fill/15 px-2.5 py-1 t-caption font-semibold text-success sm:inline-flex" title="Gemini on Vertex AI is configured">
-      <Sparkles className="size-3.5" /> Live AI
-    </span>
-  ) : (
+  if (aiAvailable) return null;
+  return (
     <span
-      className="inline-flex items-center rounded-full bg-amber-fill/15 px-2.5 py-1 t-caption font-semibold text-amber"
+      className="t-caption text-amber"
       title="No AI credentials are configured. The demo quest uses prepared, hand-checked content and template-generated follow-ups."
     >
       Demo mode

@@ -44,6 +44,8 @@ interface Engine {
   demo: boolean;
   C: { q: unknown[] }[];
   timeScale: number;
+  /** The hero: "run" toward a gap, "edge" waiting at one; anything else is mid-swing or falling. */
+  h: { mode: string };
 }
 
 export interface SpiderHud {
@@ -71,6 +73,8 @@ export interface SpiderHud {
   miss: { misconception?: string; feedback?: string; hint?: string } | null;
   /** True while the engine is waiting for the student to try again. */
   awaitingRetry: boolean;
+  /** After a second miss: the anchor that holds and why. The next tap swings across. */
+  reveal: { correctText?: string; explanation?: string } | null;
   toast: { text: string; color: string } | null;
   hintKey: string;
 }
@@ -111,10 +115,15 @@ export class SpiderClimbGame implements LearningGame<SpiderHud> {
   private readonly hud: SpiderHud = {
     intent: "", conceptTitle: "", question: null, tried: [], selected: -1, phase: "move",
     hearts: 3, score: 0, streak: 0, bestStreak: 0, firstTry: 0, answered: 0, total: 8,
-    banner: null, toast: null, hintKey: "run", miss: null, awaitingRetry: false,
+    banner: null, toast: null, hintKey: "run", miss: null, awaitingRetry: false, reveal: null,
   };
 
   private miss: SpiderHud["miss"] = null;
+  private reveal: SpiderHud["reveal"] = null;
+  /** Index of the anchor that holds, once the server has said (after the first answer). */
+  private correctIdx = -1;
+  /** Set while the game swings itself across after a reveal, so the host isn't asked to score it. */
+  private autoSwing = false;
 
   constructor(opts: { learningCheckpoints: number }) {
     this.total = Math.max(4, opts.learningCheckpoints);
@@ -172,6 +181,11 @@ export class SpiderClimbGame implements LearningGame<SpiderHud> {
 
   setQuestionArmed(armed: boolean) {
     if (!armed || this.question || this.finished) return;
+    // Not mid-swing, mid-fall or on a feedback panel: a question opened then landed on the
+    // gap just crossed, and taps went to the wrong anchors.
+    const mode = this.engine.h?.mode;
+    if (mode !== "run" && mode !== "edge") return;
+    if (this.engine.state.phase !== "move" && this.engine.state.phase !== "question") return;
     this.host.onCheckpoint({ checkpointId: `gap-${this.answered}`, offered: { kind: "none" } });
   }
 
@@ -197,11 +211,17 @@ export class SpiderClimbGame implements LearningGame<SpiderHud> {
       correct: -1,
       explain: "",
     };
-    this.engine.setState({ phase: "question", tried: [], selected: -1 });
+    // Only open the anchors once the hero is waiting at the gap; while it is still running,
+    // the engine opens them itself on arrival.
+    // Health is per gap: the run ends when the questions do, never because webs ran out
+    // (the engine's game-over panel isn't part of this HUD, so a run that died just stopped).
+    // Two misses already reveal the answer, so a full set can never reach zero.
+    this.engine.setState({ phase: this.engine.h.mode === "edge" ? "question" : this.engine.state.phase, tried: [], selected: -1, hearts: 3, banner: null });
   }
 
   /** The student webbed onto an anchor. Ask the host to score it. */
   private onChoose(k: number) {
+    if (this.autoSwing) return;
     const opt = this.question?.options[k];
     if (!opt) return;
     this.host.onAnswerChosen?.(opt.id);
@@ -228,6 +248,7 @@ export class SpiderClimbGame implements LearningGame<SpiderHud> {
     if (q) {
       // Give the engine the text it needs for its own banner copy.
       const idx = q.options.findIndex((o) => o.id === correctOptionId);
+      this.correctIdx = idx;
       const slot = Math.min(this.total - 1, this.engine.state.qi);
       const entry = this.engine.C[0].q[slot] as { correct: number; explain: string };
       entry.correct = idx;
@@ -249,19 +270,39 @@ export class SpiderClimbGame implements LearningGame<SpiderHud> {
     this.miss = m;
   }
 
-  /** The student pressed "try again": clear the panel and re-arm the gap. */
+  /**
+   * The student pressed the panel's button. After a first miss: clear it and re-arm the gap.
+   * After a second miss the answer has been shown, so the hero swings onto the anchor that
+   * holds and the climb goes on. (Leaving the gap armed with the question already closed
+   * ignored every later tap, and the run got stuck.)
+   */
   retry() {
     this.miss = null;
+    const k = this.correctIdx;
+    if (this.reveal && k >= 0) {
+      this.reveal = null;
+      this.engine.feedbackAction();
+      this.autoSwing = true;
+      this.engine.choose(k);
+      this.autoSwing = false;
+      this.question = null;
+      this.engine.resolveChoice(true);
+      return;
+    }
     this.engine.feedbackAction();
   }
 
-  /** The host passes the worked explanation so the engine can show it. */
-  setReveal(r: { explanation?: string } | null) {
+  /** A second miss: show the anchor that holds and the worked explanation. */
+  setReveal(r: { correctText?: string; explanation?: string } | null) {
     this.pendingExplain = r?.explanation ?? "";
+    this.reveal = r;
     if (r) {
       this.answered++;
-      this.question = null;
+      const slot = Math.min(this.total - 1, this.engine.state.qi);
+      const entry = this.engine.C[0].q[slot] as { explain: string } | undefined;
+      if (entry) entry.explain = this.pendingExplain;
     }
+    this.publish(this.engine.state);
   }
 
   applyCheckpointOutcome(_o: CheckpointOutcome) { /* handled in settleQuestion */ }
@@ -271,10 +312,25 @@ export class SpiderClimbGame implements LearningGame<SpiderHud> {
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
+    if (this.bannerTimer) clearTimeout(this.bannerTimer);
     this.engine?.unmount();
   }
 
+  private bannerTimer: ReturnType<typeof setTimeout> | null = null;
+  private bannerShownAt: number | undefined;
+
   private publish(s: EngineState) {
+    // The original removed its banner node after a few seconds; the port never cleared it,
+    // so the last "CORRECT" explanation sat over every later question.
+    const banner = s.banner as (SpiderHud["banner"] & { t?: number }) | null;
+    if (banner && banner.t !== this.bannerShownAt) {
+      this.bannerShownAt = banner.t;
+      if (this.bannerTimer) clearTimeout(this.bannerTimer);
+      this.bannerTimer = setTimeout(() => {
+        this.bannerTimer = null;
+        if (!this.disposed) this.engine.setState({ banner: null });
+      }, 4500);
+    }
     const h = this.hud;
     h.intent = this.learning.intent;
     h.conceptTitle = this.question?.conceptTitle ?? "";
@@ -290,6 +346,7 @@ export class SpiderClimbGame implements LearningGame<SpiderHud> {
     h.answered = this.answered;
     h.banner = s.banner;
     h.miss = this.miss;
+    h.reveal = this.reveal;
     h.awaitingRetry = s.phase === "feedback" && !s.feedback?.dead;
     h.toast = s.toast;
     h.hintKey = s.hintKey;

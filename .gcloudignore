@@ -1,0 +1,14 @@
+# Sent to Cloud Build by `gcloud run deploy --source .` — never upload secrets or local data.
+.gcloudignore
+.git
+.gitignore
+node_modules
+.next
+.data
+.env*
+!.env.example
+eval/results
+coverage
+*.log
+.DS_Store
+.claude

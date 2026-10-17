@@ -72,7 +72,7 @@ export function SpiderClimbHud({ hud, onChoose, onContinue }: GameHudProps<Spide
                 <strong className="mr-2.5" style={{ color: hud.banner.color }}>
                   {hud.banner.title}
                 </strong>
-                {hud.banner.text}
+                <RichText text={hud.banner.text} />
               </div>
             </div>
           )}
@@ -91,7 +91,31 @@ export function SpiderClimbHud({ hud, onChoose, onContinue }: GameHudProps<Spide
 
         {/* ---------------- question panel ---------------- */}
         <div className="min-h-[220px] pb-16 pt-6">
-          {hud.awaitingRetry ? (
+          {hud.awaitingRetry && hud.reveal ? (
+            <div className="pl-[22px]" style={{ borderLeft: `3px solid ${MINT}` }}>
+              <span className="block text-[10px] font-extrabold uppercase tracking-[2.3px]" style={{ color: MINT }}>
+                This is the anchor that holds
+              </span>
+              {hud.reveal.correctText && (
+                <p className="mb-1 mt-3 text-[16px] font-bold" style={{ color: PAPER }}>
+                  <RichText text={hud.reveal.correctText} />
+                </p>
+              )}
+              {hud.reveal.explanation && (
+                <p className="my-2.5 max-w-[760px] text-[14px] leading-[1.6]" style={{ color: "#b2bfd3" }}>
+                  <RichText text={hud.reveal.explanation} />
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={onContinue}
+                className="mt-2 rounded-[10px] px-6 py-[15px] text-[14px] font-extrabold"
+                style={{ background: MINT, color: "#172314" }}
+              >
+                Swing across
+              </button>
+            </div>
+          ) : hud.awaitingRetry ? (
             <div className="pl-[22px]" style={{ borderLeft: "3px solid #ff8e93" }}>
               <span className="block text-[10px] font-extrabold uppercase tracking-[2.3px]" style={{ color: "#ff8e93" }}>
                 The anchor snapped

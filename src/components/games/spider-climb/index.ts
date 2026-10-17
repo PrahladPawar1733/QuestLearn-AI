@@ -12,7 +12,7 @@ import { SpiderClimbHud } from "./hud";
 const EMPTY_HUD: SpiderHud = {
   intent: "", conceptTitle: "", question: null, tried: [], selected: -1, phase: "move",
   hearts: 3, score: 0, streak: 0, bestStreak: 0, firstTry: 0, answered: 0, total: 8,
-  banner: null, toast: null, hintKey: "run", miss: null, awaitingRetry: false,
+  banner: null, toast: null, hintKey: "run", miss: null, awaitingRetry: false, reveal: null,
 };
 
 export const spiderClimbModule: GameModule<SpiderHud> = {

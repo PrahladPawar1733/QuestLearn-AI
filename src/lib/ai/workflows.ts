@@ -3,10 +3,11 @@ import { config } from "../config";
 import { AppError } from "../errors";
 import { newId, nowIso } from "../ids";
 import type { Concept, ExtractedContent, Question, QuestSettings, TranscribedPage, TutorContent, VisualSpec } from "../types";
-import { validateQuestion } from "../validation/questions";
+import { hashSeed, rng } from "../demo/templates";
+import { similarity, validateQuestion } from "../validation/questions";
 import { generateJson, type InputPart } from "./client";
-import { DESIGN_SYSTEM, EXTRACT_SYSTEM, REVIEW_SYSTEM, simplerStyle, TRANSCRIBE_SYSTEM, TUTOR_SYSTEM } from "./prompts";
-import { ExtractionOut, QuestionSetOut, ReviewOut, TranscriptionOut, TutorOut, type QuestionOut } from "./schemas";
+import { DESIGN_SYSTEM, EXTRACT_SYSTEM, REPORT_SYSTEM, REVIEW_SYSTEM, simplerStyle, TRANSCRIBE_SYSTEM, TUTOR_SYSTEM } from "./prompts";
+import { ExtractionOut, QuestionSetOut, ReportOut, ReviewOut, TranscriptionOut, TutorOut, type QuestionOut } from "./schemas";
 
 /* ================================================================== */
 /* Material Analyst                                                    */
@@ -15,13 +16,41 @@ import { ExtractionOut, QuestionSetOut, ReviewOut, TranscriptionOut, TutorOut, t
 export interface ModelFile {
   ref: string;
   mimeType: string;
-  /** Inline bytes (demo/local storage) … */
+  /** Inline bytes (demo/local storage, or a page range cut from a longer PDF) … */
   base64?: string;
   /** … or a gs:// URI that Vertex AI reads directly (large files). */
   fileUri?: string;
+  /** Pages this file holds (1 for an image). Used to size reading batches. */
+  pages?: number;
 }
 
-export async function transcribeMaterial(files: ModelFile[], ownerId: string, materialId: string) {
+/**
+ * Pages per reading call. One call for a whole 11-page PDF took 35-270 s with
+ * gemini-3.5-flash and kept hitting the timeout, which restarted it from
+ * scratch. Small batches read in parallel finish well inside it (2026-10-17).
+ */
+export const PAGES_PER_READ = 3;
+
+/** Groups files into reading batches of about PAGES_PER_READ pages, keeping order. */
+export function readBatches(files: ModelFile[]): ModelFile[][] {
+  const out: ModelFile[][] = [];
+  let cur: ModelFile[] = [];
+  let pages = 0;
+  for (const f of files) {
+    const n = f.pages ?? 1;
+    if (cur.length && pages + n > PAGES_PER_READ) {
+      out.push(cur);
+      cur = [];
+      pages = 0;
+    }
+    cur.push(f);
+    pages += n;
+  }
+  if (cur.length) out.push(cur);
+  return out;
+}
+
+async function readBatch(files: ModelFile[], ownerId: string, materialId: string) {
   const parts: InputPart[] = [];
   for (const f of files) {
     parts.push({ text: `Source: ${f.ref}` });
@@ -29,7 +58,7 @@ export async function transcribeMaterial(files: ModelFile[], ownerId: string, ma
     else parts.push({ inlineData: { mimeType: f.mimeType, data: f.base64 ?? "" } });
   }
   parts.push({ text: "Transcribe all sources above." });
-  const out = await generateJson({
+  return generateJson({
     operation: "material.transcribe",
     schema: TranscriptionOut,
     system: TRANSCRIBE_SYSTEM,
@@ -37,7 +66,25 @@ export async function transcribeMaterial(files: ModelFile[], ownerId: string, ma
     temperature: 0.1,
     ownerId,
     inputRefs: [materialId],
+    timeoutMs: Math.max(config.aiTimeoutMs, 120_000),
+    // Copying text off a page needs little reasoning; thinking only adds latency here.
+    thinking: "minimal",
+    // A 3-page read takes ~9-25 s; past 30 s it has almost certainly stalled.
+    hedgeAfterMs: 30_000,
   });
+}
+
+export async function transcribeMaterial(files: ModelFile[], ownerId: string, materialId: string) {
+  // Every page is needed, so any batch failing fails the step (it is retryable).
+  const results = await Promise.all(readBatches(files).map((b) => readBatch(b, ownerId, materialId)));
+  const out = {
+    // One cover or blank page shouldn't sink a whole chapter: reject only if no batch is study material.
+    isStudyMaterial: results.some((r) => r.isStudyMaterial),
+    overallReadability: results.every((r) => r.overallReadability === "unreadable") ? ("unreadable" as const) : ("partial" as const),
+    detectedSubject: results.find((r) => r.detectedSubject)?.detectedSubject ?? "",
+    detectedTopic: results.find((r) => r.detectedTopic)?.detectedTopic ?? "",
+    pages: results.flatMap((r) => r.pages),
+  };
   if (!out.isStudyMaterial) {
     throw new AppError(
       "NOT_STUDY_MATERIAL",
@@ -72,6 +119,9 @@ export async function extractChapter(pages: TranscribedPage[], settings: QuestSe
     temperature: 0.2,
     ownerId,
     inputRefs: [materialId],
+    timeoutMs: Math.max(config.aiTimeoutMs, 120_000),
+    // Normally 27-37 s.
+    hedgeAfterMs: 50_000,
   });
   const seen = new Set<string>();
   const concepts = out.concepts
@@ -104,11 +154,32 @@ export async function extractChapter(pages: TranscribedPage[], settings: QuestSe
 /* Question Designer + Validator                                       */
 /* ================================================================== */
 
-export function mapQuestionOut(q: QuestionOut, ctx: { questId: string; conceptIdByKey: Record<string, string>; followUpOf?: string; id?: string }): Question | null {
-  const conceptId = ctx.conceptIdByKey[q.conceptKey];
-  if (!conceptId) return null;
+/**
+ * Models tend to put the correct answer first. Shuffle option positions with a
+ * per-question seed and remap the answer key and distractor labels, so the key
+ * position carries no signal.
+ */
+export function shuffleOptions(q: QuestionOut, seed: string): QuestionOut {
+  const letters = ["A", "B", "C", "D"] as const;
+  const order = rng(hashSeed(seed)).shuffle(q.options.map((o) => o.id));
+  const remap = new Map(order.map((oldId, i) => [oldId, letters[i]]));
   return {
-    id: ctx.id ?? newId("q"),
+    ...q,
+    options: order.map((oldId, i) => ({ id: letters[i], text: q.options.find((o) => o.id === oldId)!.text })),
+    correctOptionId: remap.get(q.correctOptionId) ?? q.correctOptionId,
+    distractors: q.distractors.map((d) => ({ ...d, optionId: remap.get(d.optionId) ?? d.optionId })),
+  };
+}
+
+export function mapQuestionOut(raw: QuestionOut, ctx: { questId: string; conceptIdByKey: Record<string, string>; followUpOf?: string; id?: string }): Question | null {
+  const conceptId = ctx.conceptIdByKey[raw.conceptKey];
+  if (!conceptId) return null;
+  const id = ctx.id ?? newId("q");
+  // Only shuffle well-formed A–D sets; anything else is left for the validator to reject.
+  const ids = raw.options.map((o) => o.id).join();
+  const q = ids === "A,B,C,D" ? shuffleOptions(raw, id) : raw;
+  return {
+    id,
     questId: ctx.questId,
     conceptId,
     type: "mcq_single",
@@ -169,6 +240,8 @@ export async function reviewQuestions(questions: Question[], ownerId: string, so
     temperature: 0,
     ownerId,
     inputRefs: questions.map((q) => q.id),
+    // Normally 10-15 s.
+    hedgeAfterMs: 25_000,
   });
   const verdicts = new Map<string, { ok: boolean; issue: string }>();
   for (const q of questions) {
@@ -193,10 +266,40 @@ export interface GeneratedQuestionSet {
   rejected: { text: string; issues: string[] }[];
 }
 
+export interface GenerationProgress {
+  /** Batches written and checked so far / planned so far (a replacement round adds more). */
+  done: number;
+  total: number;
+  accepted: number;
+}
+
 /**
- * Generates a validated, balanced question set. Questions failing
- * deterministic validation or independent-solve review are excluded; one
- * replacement round is attempted if too many are rejected.
+ * Questions per model call. One call for a whole quest (~15 questions, ~11k output tokens) took
+ * ~107 s with gemini-3.5-flash and kept tripping the timeout, which restarted it from scratch.
+ * Batches of 4 take ~55-65 s and run in parallel (measured 2026-10-17).
+ */
+const BATCH_SIZE = 4;
+const CATEGORY_FOCUS = ["understanding and reasoning", "numerical and application", "application and understanding", "reasoning and numerical"];
+
+/** Splits a request into batches; concepts are spread across batches so they don't overlap. */
+export function planBatches(need: number, keys: string[]) {
+  const n = Math.max(1, Math.ceil(need / BATCH_SIZE));
+  const batches = Array.from({ length: n }, (_, i) => ({ count: Math.floor(need / n) + (i < need % n ? 1 : 0), keys: [] as string[], focus: "" }));
+  if (keys.length >= n) keys.forEach((k, i) => batches[i % n].keys.push(k));
+  else
+    batches.forEach((b, i) => {
+      // Fewer concepts than batches: batches share concepts, so steer each to different categories.
+      if (keys.length) b.keys.push(keys[i % keys.length]);
+      b.focus = CATEGORY_FOCUS[i % CATEGORY_FOCUS.length];
+    });
+  return batches;
+}
+
+/**
+ * Generates a validated, balanced question set. Questions are written in small
+ * parallel batches; each batch is checked (deterministic validation, then
+ * independent-solve review) as soon as it arrives. Questions failing either check
+ * are excluded; one replacement round is attempted if too many are rejected.
  */
 export async function designQuestions(opts: {
   extracted: ExtractedContent;
@@ -206,12 +309,15 @@ export async function designQuestions(opts: {
   concepts: Concept[];
   conceptKeyById: Record<string, string>;
   ownerId: string;
+  onProgress?: (p: GenerationProgress) => void | Promise<void>;
 }): Promise<GeneratedQuestionSet> {
   const target = opts.settings.questionCount;
   const conceptIdByKey = Object.fromEntries(Object.entries(opts.conceptKeyById).map(([id, key]) => [key, id]));
   const src = sourceText(opts.pages, opts.extracted);
   const accepted: Question[] = [];
   const rejected: GeneratedQuestionSet["rejected"] = [];
+  const progress: GenerationProgress = { done: 0, total: 0, accepted: 0 };
+  const report = () => opts.onProgress?.({ ...progress });
 
   for (let round = 0; round < 2 && accepted.length < target; round++) {
     const need = Math.min(20, Math.ceil((target - accepted.length) * 1.4) + 1);
@@ -222,50 +328,84 @@ export async function designQuestions(opts: {
             .map((r) => r.issues[0])
             .join(" | ")}. Avoid these problems. Do not repeat these existing questions: ${accepted.map((q) => q.text.slice(0, 80)).join(" | ")}`
         : "";
-    const out = await generateJson({
-      operation: "questions.generate",
-      schema: QuestionSetOut,
-      system: DESIGN_SYSTEM,
-      parts: [
-        {
-          text: `Write ${need} questions for grade ${opts.settings.grade} ${opts.settings.subject}. Preferred difficulty: ${opts.settings.difficulty} (if "mixed", spread easy/medium/hard roughly 30/40/30). Learning goal: "${opts.settings.goal || "understand the chapter"}".
-Use only these concept keys: ${Object.keys(conceptIdByKey).join(", ")}.
-Cover every concept at least once if possible.${feedback}
+    const batches = planBatches(need, Object.keys(conceptIdByKey));
+    progress.total += batches.length;
+    await report();
+
+    const prior = [...accepted];
+    const results = await Promise.allSettled(
+      batches.map(async (b) => {
+        const out = await generateJson({
+          operation: "questions.generate",
+          schema: QuestionSetOut,
+          system: DESIGN_SYSTEM,
+          parts: [
+            {
+              text: `Write ${b.count} questions for grade ${opts.settings.grade} ${opts.settings.subject}. Preferred difficulty: ${opts.settings.difficulty} (if "mixed", spread easy/medium/hard roughly 30/40/30). Learning goal: "${opts.settings.goal || "understand the chapter"}".
+Use only these concept keys: ${b.keys.join(", ")}.
+Cover every listed concept at least once if possible.${b.focus ? ` Favour ${b.focus} questions.` : ""}${feedback}
 
 ${src}`,
-        },
-      ],
-      temperature: 0.7,
-      ownerId: opts.ownerId,
-      inputRefs: [opts.questId],
-      timeoutMs: Math.max(config.aiTimeoutMs, 120_000),
-    });
+            },
+          ],
+          temperature: 0.7,
+          ownerId: opts.ownerId,
+          inputRefs: [opts.questId],
+          timeoutMs: Math.max(config.aiTimeoutMs, 150_000),
+          // Minimal thinking measured 31 s vs 55 s for a batch of 4 (2026-10-17). Correctness doesn't
+          // rest on it: every question still passes the deterministic checks and an independent
+          // review at full thinking before it is used.
+          thinking: "minimal",
+          hedgeAfterMs: 60_000,
+        });
 
-    const candidates: Question[] = [];
-    for (const raw of out.questions) {
-      const q = mapQuestionOut(raw, { questId: opts.questId, conceptIdByKey });
-      if (!q) {
-        rejected.push({ text: raw.text, issues: [`Unknown concept key ${raw.conceptKey}`] });
-        continue;
-      }
-      const report = validateQuestion(q, [...accepted, ...candidates]);
-      if (!report.ok) {
-        rejected.push({ text: q.text, issues: report.issues });
-        continue;
-      }
-      q.validation = { status: "passed", checks: report.checks, issues: [], reviewedByModel: false };
-      candidates.push(q);
-    }
+        const candidates: Question[] = [];
+        const bad: GeneratedQuestionSet["rejected"] = [];
+        for (const raw of out.questions) {
+          const q = mapQuestionOut(raw, { questId: opts.questId, conceptIdByKey });
+          if (!q) {
+            bad.push({ text: raw.text, issues: [`Unknown concept key ${raw.conceptKey}`] });
+            continue;
+          }
+          const check = validateQuestion(q, [...prior, ...candidates]);
+          if (!check.ok) {
+            bad.push({ text: q.text, issues: check.issues });
+            continue;
+          }
+          q.validation = { status: "passed", checks: check.checks, issues: [], reviewedByModel: false };
+          candidates.push(q);
+        }
 
-    const verdicts = await reviewQuestions(candidates, opts.ownerId, src);
-    for (const q of candidates) {
-      const v = verdicts.get(q.id);
-      if (v?.ok) {
-        q.validation.reviewedByModel = true;
-        q.validation.checks.push("independent-solve-agrees");
-        accepted.push(q);
-      } else rejected.push({ text: q.text, issues: [v?.issue ?? "Review failed"] });
+        const verdicts = await reviewQuestions(candidates, opts.ownerId, src);
+        const good: Question[] = [];
+        for (const q of candidates) {
+          const v = verdicts.get(q.id);
+          if (v?.ok) {
+            q.validation.reviewedByModel = true;
+            q.validation.checks.push("independent-solve-agrees");
+            good.push(q);
+          } else bad.push({ text: q.text, issues: [v?.issue ?? "Review failed"] });
+        }
+        progress.done++;
+        progress.accepted += good.length;
+        await report();
+        return { good, bad };
+      }),
+    );
+
+    for (const r of results) {
+      if (r.status === "rejected") continue;
+      rejected.push(...r.value.bad);
+      // Batches ran in parallel, so check for duplicates across them here.
+      for (const q of r.value.good) {
+        const dup = accepted.find((o) => similarity(o.text, q.text) >= 0.8);
+        if (dup) rejected.push({ text: q.text, issues: [`Near-duplicate of question ${dup.id}`] });
+        else accepted.push(q);
+      }
     }
+    // Only give up when nothing at all came back; partial batch failures are covered by the next round.
+    const failure = results.find((r): r is PromiseRejectedResult => r.status === "rejected");
+    if (failure && accepted.length === 0) throw failure.reason;
   }
 
   return { accepted: balance(accepted, Math.min(target + 4, accepted.length)), rejected };
@@ -307,6 +447,7 @@ export async function tutorExplain(opts: {
   priorMisconceptions: Record<string, number>;
   struggle: number;
   ownerId: string;
+  thinking?: "minimal" | "low";
 }): Promise<TutorContent> {
   const q = opts.question;
   const correct = q.options.find((o) => o.id === q.correctOptionId)!;
@@ -336,6 +477,9 @@ ${opts.sourceExcerpt.slice(0, 6000) || "(none: use established subject knowledge
     inputRefs: [q.id],
     timeoutMs: 45_000,
     retries: 1,
+    thinking: opts.thinking,
+    // Normally 5-16 s at minimal thinking.
+    hedgeAfterMs: 15_000,
   });
   let visual: VisualSpec | undefined = q.visual;
   if (out.visual && out.visual.m1 > 0 && out.visual.m2 > 0 && out.visual.u1 !== out.visual.u2) {
@@ -380,6 +524,7 @@ export async function tutorFollowUp(opts: {
   subject: string;
   avoid: Pick<Question, "id" | "text">[];
   ownerId: string;
+  thinking?: "minimal" | "low";
 }): Promise<Question | null> {
   const out = await generateJson({
     operation: "tutor.followup",
@@ -397,8 +542,11 @@ ${opts.sourceExcerpt.slice(0, 5000)}`,
     temperature: 0.8,
     ownerId: opts.ownerId,
     inputRefs: [opts.missed.id],
-    timeoutMs: 45_000,
+    // It used to time out at 45 s twice and fall back; a stall now gets a backup request instead.
+    timeoutMs: 90_000,
     retries: 1,
+    hedgeAfterMs: 35_000,
+    thinking: opts.thinking,
   });
   const raw = out.questions[0];
   const q = mapQuestionOut({ ...raw, conceptKey: opts.conceptKey }, {
@@ -413,4 +561,56 @@ ${opts.sourceExcerpt.slice(0, 5000)}`,
   if (!verdict?.ok) return null;
   q.validation = { status: "passed", checks: [...report.checks, "independent-solve-agrees"], issues: [], reviewedByModel: true };
   return q;
+}
+
+/* ================================================================== */
+/* End-of-run report                                                   */
+/* ================================================================== */
+
+export interface ReportInput {
+  subject: string;
+  grade: string;
+  chapter: string;
+  concepts: { id: string; title: string; answered: number; correct: number; fixedOnRetry: boolean; notes: string }[];
+  mistakes: { conceptId: string; question: string; chosen: string; correct: string; misconception?: string; isFollowUp: boolean }[];
+  ownerId: string;
+  sessionId: string;
+}
+
+/** Writes the coaching report. Facts (scores, mistakes) come from the app; the model only explains them. */
+export async function writeSessionReport(input: ReportInput): Promise<ReportOut> {
+  const out = await generateJson({
+    operation: "report.session",
+    schema: ReportOut,
+    system: REPORT_SYSTEM,
+    parts: [
+      {
+        text: `Grade ${input.grade} ${input.subject}, chapter "${input.chapter}".
+
+CONCEPTS (id · title · right/answered this run):
+${input.concepts.map((c) => `- ${c.id} · ${c.title} · ${c.correct}/${c.answered}${c.fixedOnRetry ? " · fixed on a retry" : ""}`).join("\n")}
+
+WRONG ANSWERS:
+${input.mistakes.map((m, i) => `${i + 1}. [${m.conceptId}]${m.isFollowUp ? " (retry)" : ""} Q: ${m.question}\n   Chose: ${m.chosen}\n   Correct: ${m.correct}\n   Usual misconception: ${m.misconception ?? "unknown"}`).join("\n")}
+
+NOTES EXCERPTS (for page labels):
+${input.concepts
+  .filter((c) => c.notes)
+  .map((c) => `## ${c.title}\n${c.notes}`)
+  .join("\n\n")
+  .slice(0, 9000) || "(none)"}`,
+      },
+    ],
+    temperature: 0.4,
+    ownerId: input.ownerId,
+    inputRefs: [input.sessionId],
+    timeoutMs: 90_000,
+    retries: 1,
+    // Explaining known mistakes needs little reasoning; keep the results screen quick.
+    thinking: "minimal",
+    hedgeAfterMs: 25_000,
+  });
+  const ids = new Set(input.concepts.map((c) => c.id));
+  const seen = new Set<string>();
+  return { ...out, focus: out.focus.filter((f) => ids.has(f.conceptId) && !seen.has(f.conceptId) && (seen.add(f.conceptId), true)) };
 }

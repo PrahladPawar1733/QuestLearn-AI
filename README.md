@@ -67,7 +67,7 @@ See [.env.example](.env.example). The important ones:
 | Variable | Purpose |
 |---|---|
 | `GOOGLE_GENAI_USE_VERTEXAI=true` | Use Gemini on Vertex AI |
-| `GOOGLE_CLOUD_PROJECT` / `GOOGLE_CLOUD_LOCATION` | Vertex AI project and location (default `global`) |
+| `GOOGLE_CLOUD_PROJECT` / `GOOGLE_CLOUD_LOCATION` | Vertex AI project and location (default `us`; the `global` endpoint returned 404 in testing) |
 | `GEMINI_MODEL` | Default `gemini-3.5-flash`. Gemini 2.5 models retire on Vertex AI on 2026-10-20. |
 | `GEMINI_API_KEY` | Alternative to Vertex AI (Gemini API) |
 | `QL_DB=firestore` | Use Firestore instead of the local JSON store |

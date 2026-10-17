@@ -18,7 +18,7 @@
  *  - Nothing here is required reading. It is a brief, not a wall: sections
  *    collapse, and the student can go straight to playing.
  */
-import { AlertTriangle, BookOpen, ChevronDown, FlaskConical, Layers, Lightbulb, Sigma, Sparkles } from "lucide-react";
+import { AlertTriangle, BookOpen, ChevronDown, FlaskConical, Layers, Lightbulb, Sigma } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useState } from "react";
 import { RichText } from "@/components/math/rich-text";
@@ -44,7 +44,7 @@ export function ChapterBrief({ extracted, conceptQuestionCounts, originNote }: P
   return (
     <div className="space-y-5">
       {/* ---------------- summary ---------------- */}
-      <section className="surface rounded-[1.5rem] p-4 sm:p-5">
+      <section className="surface rounded-2xl p-4 sm:p-5">
         <h2 className="mb-2 flex items-center gap-2 t-title3 text-ink">
           <BookOpen className="size-4 text-tint" />
           What this chapter is about
@@ -55,7 +55,7 @@ export function ChapterBrief({ extracted, conceptQuestionCounts, originNote }: P
 
       {/* ---------------- honesty: what we could not read ---------------- */}
       {extracted.uncertain.length > 0 && (
-        <section className="rounded-[1.5rem] bg-amber-fill/10 p-4 ring-1 ring-amber/25 sm:p-5">
+        <section className="rounded-2xl bg-surface-2 p-4 sm:p-5">
           <h2 className="mb-2 flex items-center gap-2 t-headline text-ink">
             <AlertTriangle className="size-4 text-amber" />
             Parts we could not read clearly
@@ -91,12 +91,8 @@ export function ChapterBrief({ extracted, conceptQuestionCounts, originNote }: P
               <li key={c.key} className="rounded-2xl bg-surface-2 p-3">
                 <div className="mb-1 flex flex-wrap items-center gap-1.5">
                   <h3 className="t-headline text-ink">{c.title}</h3>
-                  <span className="rounded-full bg-fill-3 px-2 py-0.5 t-caption capitalize text-muted">{c.difficulty}</span>
-                  {!c.fromNotes && (
-                    <span className="flex items-center gap-1 rounded-full bg-tint/12 px-2 py-0.5 t-caption text-tint">
-                      <Sparkles className="size-3" /> Added
-                    </span>
-                  )}
+                  <span className="t-caption capitalize text-muted">· {c.difficulty}</span>
+                  {!c.fromNotes && <span className="t-caption text-muted">· added</span>}
                 </div>
                 <p className="t-subhead text-muted">{c.description}</p>
                 {count !== undefined && (
@@ -208,7 +204,7 @@ function Section({
   const [open, setOpen] = useState(defaultOpen);
   const reduced = !!useReducedMotion();
   return (
-    <section className="surface overflow-hidden rounded-[1.5rem]">
+    <section className="surface overflow-hidden rounded-2xl">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}

@@ -1,10 +1,9 @@
 "use client";
 
-import { AlertTriangle, ArrowRight, BookOpen, Check, ChevronDown, Film, Loader2, RefreshCw, Sparkles, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, ChevronDown, Film, Loader2, RefreshCw } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { RichText, Tex } from "@/components/math/rich-text";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { OriginBadge } from "@/components/ui/origin-badge";
 import { Visual } from "@/components/viz/visual";
@@ -20,26 +19,29 @@ export interface TutorActions {
 }
 
 /** Title + the two choices. Stays visible even when the sheet is pulled down to "peek". */
-export function TutorHeader({ data, loading, actions }: { data: ExplainResult | null; loading: boolean; actions: TutorActions }) {
+export function TutorHeader({ data, actions }: { data: ExplainResult | null; loading?: boolean; actions: TutorActions }) {
   return (
     <div className="px-5 pb-4 pt-1">
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <h2 id="tutor-heading" className="t-title3 text-ink">
-            Let&apos;s understand this
+          <h2 id="tutor-heading" className="t-headline text-ink">
+            Not quite
           </h2>
-          <p className="truncate t-footnote text-muted">{data ? data.tutor.conceptTitle : "Your mistake is a clue. Let's use it."}</p>
+          <p className="truncate t-footnote text-muted">{data ? data.tutor.conceptTitle : "Here's what to look at."}</p>
         </div>
-        {data && <OriginBadge origin={data.origin} className="mt-1 shrink-0" />}
+        {data && !data.pending && <OriginBadge origin={data.origin} className="mt-1 shrink-0 text-faint" />}
       </div>
       <div className="mt-3 flex gap-2">
         {actions.canFollowUp && (
-          <Button className="min-w-0 flex-1 sm:flex-none" onClick={actions.onTrySimilar} disabled={actions.busy !== null || loading}>
-            {actions.busy === "followup" ? <Loader2 className="animate-spin" /> : <Sparkles />} Try a similar question
+          <Button className="min-w-0 flex-1 sm:flex-none" onClick={actions.onTrySimilar} disabled={actions.busy !== null}>
+            {actions.busy === "followup" ? <Loader2 className="animate-spin" /> : null} Try a similar question
           </Button>
         )}
         <Button variant="secondary" className="shrink-0 sm:flex-none" onClick={actions.onContinue} disabled={actions.busy !== null}>
-          {actions.busy === "continue" ? <Loader2 className="animate-spin" /> : null} Continue<span className="hidden sm:inline"> quest</span>
+          {actions.busy === "continue" ? <Loader2 className="animate-spin" /> : null}
+          <span>
+            Continue<span className="hidden sm:inline"> quest</span>
+          </span>
           {!actions.canFollowUp && <ArrowRight />}
         </Button>
       </div>
@@ -96,37 +98,40 @@ export function TutorBody({
   const t = data.tutor;
 
   return (
-    <div className="space-y-6 px-5 pb-6">
-      {data.fallbackReason && <p className="rounded-xl bg-amber-fill/12 px-3 py-2 t-footnote text-amber">{data.fallbackReason}</p>}
-      {t.simplified && (
-        <p className="flex items-center gap-2 t-subhead font-semibold text-tint">
-          <Sparkles className="size-4" /> Let&apos;s slow down. Here&apos;s a simpler way to see it.
+    <motion.div key={data.pending ? "stored" : "full"} initial={{ opacity: 0.4 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }} className="space-y-6 px-5 pb-6">
+      {data.pending && (
+        <p className="flex items-center gap-2 t-footnote text-muted" aria-live="polite">
+          <Loader2 className="size-3.5 animate-spin" /> Writing a fuller explanation for your answer…
         </p>
       )}
+      {data.fallbackReason && <p className="t-footnote text-amber">{data.fallbackReason}</p>}
+      {t.simplified && (
+        <p className="t-subhead font-medium text-ink">Here&apos;s a simpler way to see it.</p>
+      )}
 
-      {/* Your answer vs. the right one, side by side */}
-      <div className="grid gap-2.5 sm:grid-cols-2">
-        <AnswerTile tone="wrong" label="Your answer" id={data.selectedOption.id} text={data.selectedOption.text} />
-        <AnswerTile tone="right" label="Correct answer" id={data.correctOption.id} text={data.correctOption.text} />
-      </div>
+      {/* Your answer vs. the right one */}
+      <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+        <AnswerTile tone="wrong" label="You chose" id={data.selectedOption.id} text={data.selectedOption.text} />
+        <AnswerTile tone="right" label="Correct" id={data.correctOption.id} text={data.correctOption.text} />
+      </dl>
 
-      <Section title="Why that answer slipped">
+      <Section title="Why it's tempting">
         <RichText as="p" text={t.whyWrong} className="t-body text-ink" />
         {t.misconception.label !== "unclassified" && (
-          <Badge tone="amber" className="mt-2" title={t.misconception.description}>
-            Misconception: {t.misconception.label.replace(/-/g, " ")}
-          </Badge>
+          <p className="mt-2 t-footnote text-muted" title={t.misconception.description}>
+            Common mix-up: {t.misconception.label.replace(/-/g, " ")}
+          </p>
         )}
       </Section>
 
-      <Section title="The idea" icon={<BookOpen className="size-4" />}>
+      <Section title="The idea">
         <RichText as="p" text={t.simpleExplanation} className="t-body text-ink" />
       </Section>
 
       {t.keyEquations.length > 0 && (
         <div className="grid gap-2 sm:grid-cols-2">
           {t.keyEquations.map((k, i) => (
-            <div key={i} className="rounded-2xl bg-surface-2 px-4 py-3">
+            <div key={i} className="rounded-xl bg-surface-2 px-4 py-3">
               <Tex tex={k.latex} display className="block text-ink" />
               <p className="t-footnote text-muted">{k.meaning}</p>
             </div>
@@ -140,8 +145,8 @@ export function TutorBody({
         <ol className="space-y-2">
           <AnimatePresence initial={false}>
             {t.steps.slice(0, stepsShown).map((s, i) => (
-              <motion.li key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex gap-3 rounded-2xl bg-surface-2 p-3.5">
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-tint t-caption font-bold text-on-tint">{i + 1}</span>
+              <motion.li key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex gap-3">
+                <span className="w-4 shrink-0 pt-px t-callout text-faint tabular">{i + 1}</span>
                 <div className="min-w-0">
                   {s.title && !/^Step \d+$/.test(s.title) && <p className="t-subhead font-semibold text-ink">{s.title}</p>}
                   <RichText as="div" text={s.body} className="t-callout text-ink" />
@@ -153,32 +158,27 @@ export function TutorBody({
         </ol>
         {stepsShown < t.steps.length && (
           <Button variant="ghost" size="sm" className="mt-2" onClick={() => setStepsShown((n) => n + 1)}>
-            <ChevronDown /> Next step ({stepsShown} of {t.steps.length})
+            <ChevronDown /> Next step ({stepsShown + 1} of {t.steps.length})
           </Button>
         )}
       </Section>
 
       {t.uncertainty && (
-        <p className="flex gap-2 rounded-xl bg-surface-2 px-3 py-2 t-footnote text-muted">
-          <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-amber" /> {t.uncertainty}
-        </p>
+        <p className="t-footnote text-muted">{t.uncertainty}</p>
       )}
       <p className="t-caption text-faint">
-        Grounded in: {t.grounding === "notes" ? "your chapter material" : t.grounding === "mixed" ? "your material + standard physics" : "standard subject knowledge"}
+        Based on {t.grounding === "notes" ? "your notes" : t.grounding === "mixed" ? "your notes and standard subject knowledge" : "standard subject knowledge"}
       </p>
 
       {videoEnabled && <VideoLesson conceptId={conceptId} />}
-    </div>
+    </motion.div>
   );
 }
 
-function Section({ title, icon, children }: { title: string; icon?: React.ReactNode; children: React.ReactNode }) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
-      <h3 className="mb-1.5 flex items-center gap-1.5 t-eyebrow text-muted">
-        {icon}
-        {title}
-      </h3>
+      <h3 className="mb-1.5 t-eyebrow text-muted">{title}</h3>
       {children}
     </section>
   );
@@ -187,14 +187,12 @@ function Section({ title, icon, children }: { title: string; icon?: React.ReactN
 function AnswerTile({ tone, label, id, text }: { tone: "wrong" | "right"; label: string; id: string; text: string }) {
   const right = tone === "right";
   return (
-    <div className={right ? "rounded-2xl bg-success-fill/12 p-3.5" : "rounded-2xl bg-danger-fill/10 p-3.5"}>
-      <p className={`mb-1 flex items-center gap-1.5 t-eyebrow ${right ? "text-success" : "text-danger"}`}>
-        {right ? <Check className="size-3.5" strokeWidth={3} /> : <X className="size-3.5" strokeWidth={3} />} {label}
-      </p>
-      <p className="t-callout text-ink">
-        <span className="mr-1.5 font-bold">{id}.</span>
+    <div className={right ? "border-l-2 border-success-fill pl-3" : "border-l-2 border-danger-fill pl-3"}>
+      <dt className={`t-footnote ${right ? "text-success" : "text-danger"}`}>{label}</dt>
+      <dd className="t-callout text-ink">
+        <span className="mr-1.5 font-medium">{id}.</span>
         <RichText text={text} />
-      </p>
+      </dd>
     </div>
   );
 }

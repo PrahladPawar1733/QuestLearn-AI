@@ -1,4 +1,4 @@
-import { ChartNoAxesColumn, ChevronRight, Gamepad2, Play } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
@@ -41,8 +41,8 @@ export const metadata: Metadata = { title: "Progress · QuestLearn AI" };
  */
 function SectionTitle({ children, note, id }: { children: React.ReactNode; note?: React.ReactNode; id?: string }) {
   return (
-    <div className="mb-3 flex items-baseline justify-between gap-3 px-1">
-      <h2 id={id} className="t-title3 text-ink">
+    <div className="mb-3 flex items-baseline justify-between gap-3">
+      <h2 id={id} className="t-headline text-ink">
         {children}
       </h2>
       {note && <span className="shrink-0 t-footnote text-muted">{note}</span>}
@@ -51,7 +51,7 @@ function SectionTitle({ children, note, id }: { children: React.ReactNode; note?
 }
 
 function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="rounded-2xl bg-surface-2 px-4 py-8 text-center t-subhead text-muted">{children}</p>;
+  return <p className="py-6 t-subhead text-muted">{children}</p>;
 }
 
 export default async function ProgressPage() {
@@ -74,20 +74,14 @@ export default async function ProgressPage() {
     const ready = p.materials.find((m) => m.questId);
     return (
       <AppShell>
-        <div className="mx-auto flex max-w-md flex-col items-center py-16 text-center">
-          <span className="flex size-16 items-center justify-center rounded-full bg-tint/14 text-tint" aria-hidden>
-            <ChartNoAxesColumn className="size-7" />
-          </span>
-          <h1 className="mt-5 t-large-title text-ink">Your learning progress</h1>
-          <p className="mt-2 t-body text-muted">
-            Nothing to show yet. Answer some questions and this page fills with your mastery per concept, what each score would take to move, and the slips that
-            keep coming back — all built from your real answers.
+        <div className="mx-auto max-w-3xl">
+          <h1 className="t-large-title text-ink">Progress</h1>
+          <p className="mt-2 max-w-md t-body text-muted">
+            Nothing here yet. After you answer some questions, this page shows how well you know each concept and which mistakes keep coming back.
           </p>
           {/* A student who has uploaded a chapter is sent to their own chapter, not the demo (backlog ON-15). */}
-          <Button asChild size="lg" className="mt-7">
-            <Link href={ready?.questId ? `/quest/${ready.questId}` : `/quest/${DEMO_QUEST_ID}`}>
-              {ready?.questId ? <Play fill="currentColor" /> : <Gamepad2 />} {ready?.questId ? `Play ${ready.title}` : "Play the demo quest"}
-            </Link>
+          <Button asChild className="mt-6">
+            <Link href={ready?.questId ? `/quest/${ready.questId}` : `/quest/${DEMO_QUEST_ID}`}>{ready?.questId ? `Play ${ready.title}` : "Play the sample quest"}</Link>
           </Button>
         </div>
       </AppShell>
@@ -132,10 +126,10 @@ export default async function ProgressPage() {
 
   return (
     <AppShell>
-      <div className="space-y-8">
+      <div className="space-y-12">
         <header>
-          <h1 className="t-large-title text-ink">Your learning progress</h1>
-          <p className="mt-2 max-w-2xl t-body text-ink">
+          <h1 className="t-large-title text-ink">Progress</h1>
+          <p className="mt-2 max-w-2xl t-body text-muted">
             {overallStatement({
               questionsAnswered: p.user.questionsAnswered,
               conceptsPractised: projected.length,
@@ -368,11 +362,7 @@ export default async function ProgressPage() {
                       <div className="min-w-0 flex-1">
                         <p className="flex min-w-0 items-center gap-2">
                           <span className="truncate t-subhead font-semibold text-ink">{s.title}</span>
-                          {s.kind === "practice" && (
-                            <Badge tone="cyan" className="shrink-0">
-                              Revision
-                            </Badge>
-                          )}
+                          {s.kind === "practice" && <span className="shrink-0 t-footnote text-muted">revision</span>}
                         </p>
                         <p className="t-footnote text-muted tabular">
                           {s.correct}/{s.answered} correct · {s.subject || "—"} · {new Date(s.startedAt).toLocaleDateString()}

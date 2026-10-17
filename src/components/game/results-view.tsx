@@ -4,20 +4,11 @@ import {
   ArrowDown,
   ArrowRight,
   ArrowUp,
-  Atom,
   Clock,
-  Crown,
-  Flag,
   Flame,
-  Globe,
-  LayoutGrid,
   Loader2,
   Minus,
-  Repeat,
-  Sparkles,
   Target,
-  Trophy,
-  Upload,
   Zap,
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
@@ -25,6 +16,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { MasteryDisclaimer } from "@/components/progress/mastery-disclaimer";
+import { SessionReport } from "./session-report";
 import {
   adaptationStory,
   conceptDelta,
@@ -47,7 +39,6 @@ import { spring } from "@/lib/motion";
 import type { SessionView } from "@/lib/services/play";
 import type { AdaptationNote, ContentOrigin, GameWorld } from "@/lib/types";
 
-const ICONS: Record<string, typeof Trophy> = { Flag, Flame, Sparkles, Atom, Crown, Globe };
 
 interface Data {
   quest: { id: string; title: string; subject: string; origin: ContentOrigin };
@@ -111,7 +102,7 @@ function MasteryMovement({ concept }: { concept: Data["perConcept"][number] }) {
   );
 }
 
-export function ResultsView({ questId, data }: { questId: string; data: Data }) {
+export function ResultsView({ questId, sessionId, data }: { questId: string; sessionId: string; data: Data }) {
   const reduced = !!useReducedMotion();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -148,18 +139,22 @@ export function ResultsView({ questId, data }: { questId: string; data: Data }) 
         initial={reduced ? false : { opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={spring.gentle}
-        className="surface rounded-[1.75rem] px-5 py-6 sm:px-7 sm:py-8"
+        className="pb-2"
       >
-        <p className="t-eyebrow text-tint">{data.kind === "practice" ? "Revision complete" : "Quest complete"}</p>
-        <h1 className="mt-1 t-large-title text-ink">What you learned</h1>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <span className="min-w-0 t-subhead font-semibold text-ink">{data.quest.title}</span>
-          <Badge tone="primary">{data.quest.subject}</Badge>
-          <OriginBadge origin={data.quest.origin} />
-        </div>
+        <p className="flex flex-wrap items-center gap-x-2 t-footnote text-muted">
+          <span>{data.kind === "practice" ? "Revision complete" : "Quest complete"}</span>
+          <span aria-hidden>·</span>
+          <span>{data.quest.title}</span>
+          <span aria-hidden>·</span>
+          <OriginBadge origin={data.quest.origin} className="t-footnote font-normal" />
+        </p>
+        <h1 className="mt-2 t-large-title text-ink">What you learned</h1>
         <p className="mt-4 t-body text-ink">{runHeadline(data.perConcept)}</p>
         <p className="mt-1.5 t-subhead text-muted">{reviseNextSentence(data.perConcept)}</p>
       </motion.header>
+
+      {/* The coaching report: what to learn, why answers went wrong, what to do. */}
+      <SessionReport sessionId={sessionId} />
 
       {/* 2. Mistake → mastery. The one event worth celebrating above everything else. */}
       {fixed.length > 0 && (
@@ -168,11 +163,9 @@ export function ResultsView({ questId, data }: { questId: string; data: Data }) 
           animate={{ opacity: 1, scale: 1 }}
           transition={{ ...spring.gentle, delay: 0.1 }}
           aria-labelledby="fixed-h"
-          className="rounded-[1.5rem] bg-success-fill/12 px-5 py-5"
+          className="rounded-2xl bg-surface-2 px-5 py-5"
         >
-          <p className="flex items-center gap-1.5 t-eyebrow text-success">
-            <Repeat className="size-3.5" aria-hidden /> Mistake → mastery
-          </p>
+          <p className="t-eyebrow text-success">Mistakes fixed</p>
           <h2 id="fixed-h" className="mt-1 t-title3 text-ink">
             You fixed {fixed.length} {fixed.length === 1 ? "mistake" : "mistakes"} on the retry
           </h2>
@@ -182,7 +175,7 @@ export function ResultsView({ questId, data }: { questId: string; data: Data }) 
                 <Link href={`/learn/${encodeURIComponent(c.conceptId)}`} className="font-semibold hover:text-tint">
                   {c.title}
                 </Link>
-                <span className="text-muted"> — got it wrong, read why, then got it right.</span>
+                <span className="text-muted">: wrong at first, right on the retry.</span>
               </li>
             ))}
           </ul>
@@ -195,7 +188,7 @@ export function ResultsView({ questId, data }: { questId: string; data: Data }) 
 
       {/* 3. Concept by concept: the learning column the plan asks for. */}
       <section aria-labelledby="concepts-h">
-        <h2 id="concepts-h" className="mb-3 px-1 t-title3 text-ink">
+        <h2 id="concepts-h" className="mb-1 border-b border-line pb-2 t-headline text-ink">
           Concept by concept
         </h2>
         {concepts.length === 0 ? (
@@ -203,14 +196,14 @@ export function ResultsView({ questId, data }: { questId: string; data: Data }) 
             <CardContent className="pt-5 t-subhead text-muted">No questions were answered in this run, so there is nothing to show yet.</CardContent>
           </Card>
         ) : (
-          <ul className="space-y-3">
+          <ul className="divide-y divide-line">
             {concepts.map((c, i) => (
               <motion.li
                 key={c.conceptId}
                 initial={reduced ? false : { opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ ...spring.default, delay: 0.15 + i * 0.05 }}
-                className="surface rounded-[1.25rem] px-4 py-4"
+                className="py-4"
               >
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
                   <Link href={`/learn/${encodeURIComponent(c.conceptId)}`} className="min-w-0 t-headline text-ink hover:text-tint">
@@ -221,7 +214,7 @@ export function ResultsView({ questId, data }: { questId: string; data: Data }) 
                   </Badge>
                   {c.followUpFixed && (
                     <Badge tone="success" className="shrink-0">
-                      <Repeat /> fixed on the retry
+                      fixed on the retry
                     </Badge>
                   )}
                 </div>
@@ -241,9 +234,9 @@ export function ResultsView({ questId, data }: { questId: string; data: Data }) 
       </section>
 
       {/* 4. What to do next. */}
-      <section className="rounded-[1.75rem] bg-tint/10 px-5 py-6" aria-labelledby="next-h">
-        <p className="t-eyebrow text-tint">Recommended next</p>
-        <h2 id="next-h" className="mt-1 t-title2 text-ink">
+      <section className="rounded-2xl bg-surface-2 px-5 py-6" aria-labelledby="next-h">
+        <p className="t-eyebrow text-muted">Next</p>
+        <h2 id="next-h" className="mt-1 t-title3 text-ink">
           {data.recommendation.title}
         </h2>
         <p className="mt-1 t-body text-muted">{data.recommendation.detail}</p>
@@ -255,27 +248,21 @@ export function ResultsView({ questId, data }: { questId: string; data: Data }) 
         <div className="mt-5 flex flex-col gap-2 sm:flex-row">
           {data.weakConceptIds.length > 0 && (
             <Button size="lg" onClick={practice} disabled={busy}>
-              {busy ? <Loader2 className="animate-spin" /> : <Sparkles />} Practise weak concepts
+              {busy ? <Loader2 className="animate-spin" /> : null} Practise weak concepts
             </Button>
           )}
           {data.recommendation.action === "new" && (
             <Button asChild size="lg" variant={data.weakConceptIds.length ? "secondary" : "primary"}>
-              <Link href="/create">
-                <Upload /> Create a new quest
-              </Link>
+              <Link href="/create">New quest</Link>
             </Button>
           )}
           {data.recommendation.action === "replay" && (
             <Button asChild size="lg" variant="secondary">
-              <Link href={`/quest/${questId}`}>
-                <Repeat /> Replay quest
-              </Link>
+              <Link href={`/quest/${questId}`}>Play again</Link>
             </Button>
           )}
           <Button asChild size="lg" variant="secondary">
-            <Link href="/dashboard">
-              <LayoutGrid /> Dashboard
-            </Link>
+            <Link href="/dashboard">Chapters</Link>
           </Button>
         </div>
       </section>
@@ -283,7 +270,7 @@ export function ResultsView({ questId, data }: { questId: string; data: Data }) 
       {/* 5. The adaptive timeline as prose, grouped into difficulty runs. */}
       {steps.length > 0 && (
         <section aria-labelledby="adapt-h">
-          <h2 id="adapt-h" className="mb-3 px-1 t-title3 text-ink">
+          <h2 id="adapt-h" className="mb-3 t-headline text-ink">
             How the questions adapted to you
           </h2>
           <Card>
@@ -293,15 +280,7 @@ export function ResultsView({ questId, data }: { questId: string; data: Data }) 
                   const Icon = s.direction === "up" ? ArrowUp : s.direction === "down" ? ArrowDown : Minus;
                   return (
                     <li key={`${s.from}-${s.difficulty}`} className="flex items-start gap-3">
-                      <span
-                        className={cn(
-                          "mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full",
-                          s.direction === "up" ? "bg-tint/14 text-tint" : s.direction === "down" ? "bg-amber-fill/16 text-amber" : "bg-fill-3 text-muted",
-                        )}
-                        aria-hidden
-                      >
-                        <Icon className="size-3.5" />
-                      </span>
+                      <Icon className={cn("mt-1 size-3.5 shrink-0", s.direction === "down" ? "text-amber" : "text-muted")} aria-hidden />
                       <div className="min-w-0">
                         <p className="t-subhead font-semibold text-ink">
                           {stepRangeLabel(s)} · {directionLabel(s.direction, s.difficulty)}
@@ -323,8 +302,8 @@ export function ResultsView({ questId, data }: { questId: string; data: Data }) 
 
       {/* 6. Score, demoted. It measures the game, not the learning. */}
       <section aria-labelledby="score-h">
-        <div className="mb-3 flex items-baseline justify-between gap-3 px-1">
-          <h2 id="score-h" className="t-title3 text-ink">
+        <div className="mb-3 flex items-baseline justify-between gap-3">
+          <h2 id="score-h" className="t-headline text-ink">
             Score this run
           </h2>
           <span className="shrink-0 t-footnote text-muted tabular">
@@ -335,11 +314,9 @@ export function ResultsView({ questId, data }: { questId: string; data: Data }) 
           <CardContent className="pt-5">
             <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {scoreRow.map((s) => (
-                <div key={s.label} className="rounded-xl bg-surface-2 px-3 py-3">
-                  <dt className="flex items-center gap-1.5 t-caption text-muted">
-                    <s.icon className="size-3.5" aria-hidden /> {s.label}
-                  </dt>
-                  <dd className="mt-1 font-rounded t-headline text-ink tabular">{s.value}</dd>
+                <div key={s.label}>
+                  <dt className="t-caption text-muted">{s.label}</dt>
+                  <dd className="mt-0.5 t-headline text-ink tabular">{s.value}</dd>
                 </div>
               ))}
             </dl>
@@ -353,17 +330,13 @@ export function ResultsView({ questId, data }: { questId: string; data: Data }) 
 
       {data.achievements.length > 0 && (
         <section aria-labelledby="ach-h">
-          <h2 id="ach-h" className="mb-3 px-1 t-title3 text-ink">
+          <h2 id="ach-h" className="mb-3 t-headline text-ink">
             Achievements earned this run
           </h2>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
             {data.achievements.map((a) => {
-              const Icon = ICONS[a.icon] ?? Trophy;
               return (
-                <div key={a.id} className="surface flex items-center gap-3 rounded-[1.25rem] p-4">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-fill/16 text-amber" aria-hidden>
-                    <Icon className="size-4" />
-                  </span>
+                <div key={a.id}>
                   <div className="min-w-0">
                     <p className="t-subhead font-semibold text-ink">{a.title}</p>
                     <p className="t-footnote text-muted">{a.description}</p>

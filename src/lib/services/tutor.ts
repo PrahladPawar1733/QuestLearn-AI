@@ -93,9 +93,16 @@ export interface ExplainResult {
   selectedOption: { id: string; text: string };
   questionText: string;
   struggle: number;
+  /** True for the instant stored lesson while the tailored AI lesson is still being written. */
+  pending?: boolean;
 }
 
-export async function explainMistake(uid: string, sessionId: string, questionId: string, conceptId: string): Promise<ExplainResult> {
+/**
+ * Explains a wrong answer. With `quick`, returns the question's stored explanation
+ * immediately (no AI call) so the student isn't left waiting; the client then
+ * swaps in the tailored AI lesson from a normal call when it arrives.
+ */
+export async function explainMistake(uid: string, sessionId: string, questionId: string, conceptId: string, opts: { quick?: boolean } = {}): Promise<ExplainResult> {
   const session = await loadSession(sessionId, uid);
   const quest = await loadQuest(session.questId, uid);
   const attempt = await wrongAttempt(uid, sessionId, questionId);
@@ -114,6 +121,10 @@ export async function explainMistake(uid: string, sessionId: string, questionId:
     const c = cached.content as { tutor: TutorContent; fallbackReason?: string };
     return { ...base, tutor: c.tutor, origin: cached.origin, fallbackReason: c.fallbackReason };
   }
+  if (opts.quick && aiAvailable()) {
+    const origin = isDemoQuest(quest.id) ? "demo_prepared" : q.origin;
+    return { ...base, tutor: preparedTutor(q, attempt.selectedOptionId, concept, struggle), origin, pending: true };
+  }
 
   let tutor: TutorContent;
   let origin: ContentOrigin;
@@ -131,6 +142,9 @@ export async function explainMistake(uid: string, sessionId: string, questionId:
         priorMisconceptions: history.misconceptions,
         struggle,
         ownerId: uid,
+        // The answer key is fixed before the model sees it, so less thinking is safe here:
+        // minimal measured 6-16 s vs 15-37 s at the default level (gemini-3.5-flash, 2026-10-17).
+        thinking: "minimal",
       });
       origin = "ai_generated";
     } catch (e) {

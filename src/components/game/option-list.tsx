@@ -44,28 +44,28 @@ export function OptionList({
               onPointerDown={() => !locked && selected !== o.id && haptic("selection")}
               onClick={() => onSelect(o.id as OptionId)}
               className={cn(
-                "pressable group flex h-full w-full items-start gap-3 rounded-2xl p-3.5 text-left ring-inset",
-                st === "idle" && "bg-surface-2 hover:bg-fill-3",
-                st === "selected" && "bg-tint/12 ring-2 ring-tint",
-                st === "correct" && "bg-success-fill/14 ring-2 ring-success-fill",
-                st === "wrong" && "bg-danger-fill/12 ring-2 ring-danger-fill",
-                st === "dimmed" && "bg-surface-2 opacity-50",
+                "pressable group flex h-full w-full items-start gap-3 rounded-xl bg-surface p-3.5 text-left ring-inset",
+                st === "idle" && "ring-1 ring-line-strong hover:bg-fill-4",
+                st === "selected" && "ring-2 ring-tint",
+                st === "correct" && "bg-success-fill/6 ring-2 ring-success-fill",
+                st === "wrong" && "bg-danger-fill/6 ring-2 ring-danger-fill",
+                st === "dimmed" && "opacity-45 ring-1 ring-line",
                 locked && "cursor-default",
               )}
             >
               <span
                 className={cn(
-                  "flex size-7 shrink-0 items-center justify-center rounded-full t-footnote font-bold transition-colors",
-                  st === "idle" && "bg-fill-3 text-muted",
+                  "flex size-6 shrink-0 items-center justify-center rounded-md t-footnote font-semibold transition-colors",
+                  st === "idle" && "text-muted",
                   st === "selected" && "bg-tint text-on-tint",
                   st === "correct" && "bg-success-fill text-white",
                   st === "wrong" && "bg-danger-fill text-white",
-                  st === "dimmed" && "bg-fill-4 text-faint",
+                  st === "dimmed" && "text-faint",
                 )}
               >
                 {st === "correct" ? <Check className="size-4" strokeWidth={3} /> : st === "wrong" ? <X className="size-4" strokeWidth={3} /> : o.id}
               </span>
-              <RichText text={o.text} className="pt-0.5 t-callout text-ink" />
+              <RichText text={o.text} className="t-callout text-ink" />
             </button>
           </motion.div>
         );

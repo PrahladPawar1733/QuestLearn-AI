@@ -49,7 +49,8 @@ class GcsBlobStore implements BlobStore {
   private bucketP = import("@google-cloud/storage").then(({ Storage }) => new Storage().bucket(config.bucket));
   async put(key: string, data: Buffer, contentType: string) {
     const b = await this.bucketP;
-    await b.file(safeKey(key)).save(data, { contentType, resumable: false, private: true });
+    // Privacy comes from the bucket policy (uniform access + public access prevention), not per-object ACLs.
+    await b.file(safeKey(key)).save(data, { contentType, resumable: false });
     return `gs://${config.bucket}/${safeKey(key)}`;
   }
   async get(key: string) {

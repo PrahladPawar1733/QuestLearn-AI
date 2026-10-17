@@ -1,11 +1,9 @@
 "use client";
 
-import { Atom, Crown, Flag, Flame, Globe, Sparkles, Trophy } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect } from "react";
 import { fade } from "@/lib/motion";
 
-const ICONS: Record<string, typeof Trophy> = { Flag, Flame, Sparkles, Atom, Crown, Globe };
 
 export interface Achievement {
   id: string;
@@ -23,7 +21,6 @@ export function AchievementToasts({ items, onDone }: { items: Achievement[]; onD
     return () => clearTimeout(t);
   }, [items, onDone]);
   const a = items[0];
-  const Icon = a ? (ICONS[a.icon] ?? Trophy) : Trophy;
   return (
     <div className="pointer-events-none fixed inset-x-0 top-3 z-[60] flex justify-center px-4" aria-live="assertive">
       <AnimatePresence>
@@ -34,15 +31,10 @@ export function AchievementToasts({ items, onDone }: { items: Achievement[]; onD
             animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
             exit={reduced ? { opacity: 0 } : { opacity: 0, y: -40, scale: 0.9, filter: "blur(6px)" }}
             transition={reduced ? fade : undefined}
-            className="material-thick pointer-events-auto flex items-center gap-3 rounded-full py-2 pl-2 pr-5"
+            className="material-thick pointer-events-auto rounded-xl px-4 py-2.5"
           >
-            <span className="flex size-10 items-center justify-center rounded-full bg-amber-fill text-white">
-              <Icon className="size-5" />
-            </span>
-            <div>
-              <p className="t-caption font-semibold text-amber">Achievement unlocked</p>
-              <p className="t-subhead font-semibold text-ink">{a.title}</p>
-            </div>
+            <p className="t-caption text-muted">Achievement</p>
+            <p className="t-subhead font-medium text-ink">{a.title}</p>
           </motion.div>
         )}
       </AnimatePresence>

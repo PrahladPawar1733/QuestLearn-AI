@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Info, Lightbulb, Loader2, RefreshCw } from "lucide-react";
+import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -20,7 +20,6 @@ import { QuestionCard } from "./question-card";
 import { StatusBar } from "./status-bar";
 import { TutorBody, TutorHeader, type TutorActions } from "./tutor-panel";
 import type { OptionId, Phase } from "./types";
-import { worldMeta } from "./types";
 import { useExplain } from "./use-explain";
 import { WORLD_COMPONENTS } from "./worlds";
 
@@ -52,7 +51,6 @@ export function QuestPlayer({ initial, videoEnabled }: { initial: SessionView; v
   // A real-time game has its own player, so reaching this component with one
   // means a stale link; fall back to the focused world rather than crashing.
   const World = WORLD_COMPONENTS[view.session.world as SkinWorld] ?? WORLD_COMPONENTS.classic;
-  const meta = worldMeta(view.session.world);
   const explain = useExplain(showTutor && tutor ? { sessionId: view.session.id, questionId: tutor.questionId, conceptId: tutor.conceptId } : null);
 
   const resync = useCallback(async () => {
@@ -235,7 +233,7 @@ export function QuestPlayer({ initial, videoEnabled }: { initial: SessionView; v
         style={{ paddingBottom: sheetOpen ? SHEET_PEEK_RESERVE : undefined }}
       >
         <StatusBar
-          title={`${meta.emoji} ${view.quest.title}`}
+          title={view.quest.title}
           index={answeredIndex}
           total={view.session.playLength}
           outcomes={view.session.outcomes}
@@ -254,17 +252,13 @@ export function QuestPlayer({ initial, videoEnabled }: { initial: SessionView; v
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              className="flex items-start gap-2 overflow-hidden px-1 t-footnote text-muted"
+              className="overflow-hidden px-1 t-footnote text-faint"
             >
-              <Info className="mt-0.5 size-3.5 shrink-0 text-tint" />
-              <span>
-                <span className="font-semibold text-ink">Why this question: </span>
-                {view.session.lastAdaptation.reason}
-              </span>
+              {view.session.lastAdaptation.reason}
             </motion.p>
           )}
         </AnimatePresence>
-        {note && <p className="rounded-xl bg-amber-fill/12 px-3 py-2 t-footnote text-amber">{note}</p>}
+        {note && <p className="rounded-xl bg-surface-2 px-3 py-2 t-footnote text-amber">{note}</p>}
 
         <AnimatePresence mode="popLayout" initial={false}>
           {q && (
@@ -274,7 +268,7 @@ export function QuestPlayer({ initial, videoEnabled }: { initial: SessionView; v
               animate={{ opacity: 1, x: 0 }}
               exit={reduced ? { opacity: 0 } : { opacity: 0, x: -40 }}
               transition={reduced ? fade : spring.default}
-              className="surface space-y-5 rounded-[1.75rem] p-4 sm:p-6"
+              className="space-y-6 py-2"
             >
               <QuestionCard q={q} hint={hint} settled={settled} />
               <World
@@ -292,13 +286,13 @@ export function QuestPlayer({ initial, videoEnabled }: { initial: SessionView; v
               {!settled && (
                 <div className="flex flex-wrap items-center gap-3 pt-1">
                   {q.hasHint && !hint && (
-                    <Button variant="amber" onClick={takeHint} disabled={busy === "hint" || phase !== "answering"}>
-                      {busy === "hint" ? <Loader2 className="animate-spin" /> : <Lightbulb />} Hint · −40 XP
+                    <Button variant="ghost" onClick={takeHint} disabled={busy === "hint" || phase !== "answering"} title="Costs 40 XP">
+                      {busy === "hint" ? <Loader2 className="animate-spin" /> : null} Show a hint
                     </Button>
                   )}
                   <p className="hidden t-footnote text-faint lg:block">A–D to choose · Return to submit</p>
                   <Button size="lg" className="ml-auto min-w-44 max-sm:w-full" onClick={submit} disabled={!selected || phase !== "answering"}>
-                    {phase === "submitting" ? <Loader2 className="animate-spin" /> : null} {phase === "submitting" ? "Checking…" : "Check Answer"}
+                    {phase === "submitting" ? <Loader2 className="animate-spin" /> : null} {phase === "submitting" ? "Checking…" : "Check answer"}
                   </Button>
                 </div>
               )}
@@ -374,7 +368,7 @@ function InlinePanel({ children, tone, reduced, labelledBy }: { children: React.
       animate={{ opacity: 1, y: 0 }}
       exit={reduced ? { opacity: 0 } : { opacity: 0, y: 32 }}
       transition={reduced ? fade : spring.default}
-      className={cn("surface overflow-hidden rounded-[1.75rem] pt-3", tone === "success" ? "ring-1 ring-success-fill/30" : "ring-1 ring-tint/25")}
+      className={cn("surface overflow-hidden rounded-2xl pt-3", tone === "success" && "outline-success-fill/40")}
       aria-live="polite"
     >
       {children}

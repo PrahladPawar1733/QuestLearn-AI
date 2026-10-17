@@ -24,7 +24,8 @@ export const config = {
     return process.env.GOOGLE_CLOUD_PROJECT ?? "";
   },
   get location() {
-    return process.env.GOOGLE_CLOUD_LOCATION ?? "global";
+    // "us" multi-region: the "global" endpoint returned 404 for our projects (tested 2026-10-17).
+    return process.env.GOOGLE_CLOUD_LOCATION ?? "us";
   },
   get model() {
     // Gemini 2.5 models retire on 2026-10-20 on Vertex AI; 3.5 Flash is stable until at least 2027-05.
@@ -53,6 +54,10 @@ export const config = {
   },
   get dataDir() {
     return process.env.QL_DATA_DIR ?? ".data";
+  },
+  /** Ask Vertex to enforce the JSON schema (constrained decoding). Off by default: it stalls requests at random. */
+  get aiConstrainedJson() {
+    return process.env.QL_AI_CONSTRAINED_JSON === "true";
   },
   get aiTimeoutMs() {
     return Number(process.env.QL_AI_TIMEOUT_MS ?? 90_000);

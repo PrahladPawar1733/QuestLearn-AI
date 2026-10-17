@@ -292,6 +292,8 @@ export const Material = z.object({
   transcription: z.array(TranscribedPage).optional(),
   extracted: ExtractedContent.optional(),
   questId: z.string().optional(),
+  /** Question-generation batches checked so far (shown while stage === "questions"). */
+  progress: z.object({ done: z.number(), total: z.number(), accepted: z.number() }).optional(),
   isDemo: z.boolean().default(false),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -479,7 +481,7 @@ export const LearningAsset = z.object({
   ownerId: z.string(),
   conceptId: z.string(),
   sessionId: z.string().optional(),
-  type: z.enum(["tutor", "video", "diagram"]),
+  type: z.enum(["tutor", "video", "diagram", "report"]),
   origin: ContentOrigin,
   storagePath: z.string().optional(),
   content: z.unknown().optional(),

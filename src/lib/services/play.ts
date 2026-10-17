@@ -220,6 +220,8 @@ export interface AnswerResult {
   explanation: string;
   steps: string[];
   selectedFeedback?: { misconception: string; feedback: string };
+  /** The stored hint, sent with a wrong answer: the question is closed by then, so /hint would refuse. */
+  hint?: string;
   visual?: Question["visual"];
   xpAwarded: number;
   xpBreakdown: { label: string; xp: number }[];
@@ -333,6 +335,7 @@ export async function submitAnswer(uid: string, sessionId: string, questionId: s
       explanation: q.explanation,
       steps: q.steps ?? [],
       selectedFeedback: df ? { misconception: df.misconception, feedback: df.feedback } : undefined,
+      hint: isCorrect ? undefined : q.hint || undefined,
       visual: q.visual,
       xpAwarded: xp.total,
       xpBreakdown: xp.breakdown,
