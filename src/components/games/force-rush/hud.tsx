@@ -22,6 +22,7 @@
  * rest of the app is in.
  */
 import { RichText } from "@/components/math/rich-text";
+import { LanguageSelect, ListenButton, useTranslated } from "@/lib/language/client";
 import type { GameHudProps } from "@/lib/game/module";
 import type { ForceRushHud } from "./game";
 
@@ -71,8 +72,12 @@ const CSS = `
 `;
 
 export function ForceRushHudView({ hud, onChoose, onContinue }: GameHudProps<ForceRushHud>) {
-  const q = hud.question;
+  const q0 = hud.question;
   const answering = hud.showQuestion && hud.phase === "question";
+  // Learning content follows the game's language picker (cached; instant after the first time).
+  const { texts: tx } = useTranslated([q0?.text ?? "", hud.conceptTitle ?? "", hud.cardText ?? "", hud.cardExplain ?? "", ...hud.options.map((o) => o.text)]);
+  const q = q0 && { ...q0, text: tx[0] || q0.text };
+  const optionText = (i: number, fallback: string) => tx[4 + i] || fallback;
 
   return (
     <div className="relative flex min-h-[100dvh] w-full flex-col" style={{ color: PAPER, fontFamily: BODY }}>
@@ -105,6 +110,7 @@ export function ForceRushHudView({ hud, onChoose, onContinue }: GameHudProps<For
             </div>
 
             <div className="flex flex-shrink-0 items-center gap-[18px]">
+              <LanguageSelect dark />
               <div className="text-right">
                 <div style={{ fontSize: 11, letterSpacing: ".16em", color: MUTED }}>HEALTH</div>
                 <div className="mt-[4px] flex justify-end gap-[5px]">
@@ -185,14 +191,21 @@ export function ForceRushHudView({ hud, onChoose, onContinue }: GameHudProps<For
                 <>
                   {hud.conceptTitle && (
                     <div className="mb-[8px]" style={{ fontSize: 11, letterSpacing: ".16em", color: MUTED }}>
-                      {hud.conceptTitle.toUpperCase()}
+                      {(tx[1] || hud.conceptTitle).toUpperCase()}
                     </div>
                   )}
-                  <h2 className="mb-[16px]" style={{ fontSize: 19, fontWeight: 600, lineHeight: 1.35 }}>
+                  <h2 className="mb-[10px]" style={{ fontSize: 19, fontWeight: 600, lineHeight: 1.35 }}>
                     <RichText text={q.text} />
                   </h2>
+                  <ListenButton
+                    dark
+                    key={q0?.id}
+                    className="mb-[14px]"
+                    label="Read aloud"
+                    text={`${q.text} ${hud.options.map((o, i) => `${o.id}: ${optionText(i, o.text)}.`).join(" ")}`}
+                  />
                   <div className="grid gap-[12px]" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))" }}>
-                    {hud.options.map((o) => (
+                    {hud.options.map((o, oi) => (
                       <button
                         key={o.id}
                         type="button"
@@ -212,7 +225,7 @@ export function ForceRushHudView({ hud, onChoose, onContinue }: GameHudProps<For
                           lineHeight: 1.3,
                         }}
                       >
-                        <RichText text={o.text} />
+                        <RichText text={optionText(oi, o.text)} />
                       </button>
                     ))}
                   </div>
@@ -262,14 +275,14 @@ export function ForceRushHudView({ hud, onChoose, onContinue }: GameHudProps<For
               {hud.cardTitle}
             </div>
             <div className="mb-[14px]" style={{ fontSize: 17, lineHeight: 1.45 }}>
-              <RichText text={hud.cardText} />
+              <RichText text={tx[2] || hud.cardText} />
             </div>
             {hud.cardHasExplain && (
               <div
                 className="mb-[20px] whitespace-pre-wrap rounded-[10px] px-[16px] py-[14px]"
                 style={{ background: MONO_BG, fontFamily: MONO, fontSize: 14, lineHeight: 1.55, color: SOFT }}
               >
-                <RichText text={hud.cardExplain} />
+                <RichText text={tx[3] || hud.cardExplain} />
               </div>
             )}
             <button

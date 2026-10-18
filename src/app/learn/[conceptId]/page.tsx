@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LearnPractice } from "@/components/game/learn-practice";
 import { AppShell } from "@/components/layout/app-shell";
-import { Tex, RichText } from "@/components/math/rich-text";
+import { Tex } from "@/components/math/rich-text";
+import { LocalizedText, ReadAloudBar } from "@/components/learn/localized";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,7 +52,7 @@ export default async function LearnPage(props: PageProps<"/learn/[conceptId]">) 
             <Badge tone={concept.fromNotes ? "success" : "neutral"}>{concept.fromNotes ? "From your material" : "Background knowledge"}</Badge>
           </div>
           <h1 className="t-large-title text-ink">{concept.title}</h1>
-          <p className="mt-2 t-body text-muted">{concept.description}</p>
+          <LocalizedText as="p" text={concept.description} className="mt-2 t-body text-muted" />
         </header>
 
         {/* Mastery */}
@@ -111,10 +112,11 @@ export default async function LearnPage(props: PageProps<"/learn/[conceptId]">) 
               <Badge tone="amber">Prepared lesson</Badge>
             </CardHeader>
             <CardContent className="space-y-4">
-              <RichText as="p" text={lesson.explanation} className="t-body text-ink" />
+              <ReadAloudBar texts={[lesson.explanation, lesson.simple]} label="Read this lesson" />
+              <LocalizedText as="p" text={lesson.explanation} className="t-body text-ink" />
               <div className="rounded-2xl bg-surface-2 p-4">
                 <h3 className="mb-1.5 t-eyebrow text-muted">In everyday terms</h3>
-                <RichText as="p" text={lesson.simple} className="t-body text-ink" />
+                <LocalizedText as="p" text={lesson.simple} className="t-body text-ink" />
               </div>
               {lesson.keyEquations.length > 0 && (
                 <div>
