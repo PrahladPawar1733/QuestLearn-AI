@@ -57,7 +57,7 @@ export function QuestLobby({ quest, concepts, active, completedRuns, defaultWorl
           <span aria-hidden>·</span>
           <span>Grade {quest.grade}</span>
           <span aria-hidden>·</span>
-          <OriginBadge origin={quest.origin} className="t-footnote font-normal" />
+          <OriginBadge origin={quest.origin} />
         </p>
         <h1 className="mt-2 t-large-title text-ink sm:t-display">{quest.title}</h1>
         <p className="mt-3 max-w-xl t-body text-muted">
@@ -77,11 +77,11 @@ export function QuestLobby({ quest, concepts, active, completedRuns, defaultWorl
       </header>
 
       <section aria-labelledby="games-heading">
-        <h2 id="games-heading" className="t-headline text-ink">
+        <h2 id="games-heading" className="t-title3 text-ink">
           How do you want to play?
         </h2>
         <p className="mt-1 t-subhead text-muted">The questions, marking and mastery are the same in each.</p>
-        <div role="radiogroup" aria-labelledby="games-heading" className="mt-4 divide-y divide-line overflow-hidden rounded-2xl surface">
+        <div role="radiogroup" aria-labelledby="games-heading" className="mt-4 grid gap-3">
           {options.map((o) => {
             const on = world === o.id;
             return (
@@ -95,9 +95,12 @@ export function QuestLobby({ quest, concepts, active, completedRuns, defaultWorl
                   setWorld(o.id);
                   haptic("selection");
                 }}
-                className={cn("flex w-full items-center gap-4 p-3 text-left transition-colors sm:p-4", on ? "bg-fill-4" : "hover:bg-fill-4")}
+                className={cn(
+                  "pressable surface flex w-full items-center gap-4 rounded-[20px] p-3 text-left transition-shadow sm:p-4",
+                  on ? "ring-2 ring-tint shadow-[0_10px_28px_-12px_rgb(91_69_240/0.55)]" : "hover:shadow-[var(--shadow-float)]",
+                )}
               >
-                <span className="relative h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-surface-2 sm:h-16 sm:w-24">
+                <span className="relative h-16 w-24 shrink-0 overflow-hidden rounded-xl bg-surface-2 sm:h-20 sm:w-32">
                   {o.game ? <GamePreview id={o.id as never} /> : <FocusThumb />}
                 </span>
                 <span className="min-w-0 flex-1">
@@ -108,7 +111,7 @@ export function QuestLobby({ quest, concepts, active, completedRuns, defaultWorl
                   aria-hidden
                   className={cn(
                     "flex size-5 shrink-0 items-center justify-center rounded-full ring-1 ring-inset transition-colors",
-                    on ? "bg-tint ring-tint" : "ring-line-strong",
+                    on ? "bg-brand ring-transparent" : "ring-line-strong",
                   )}
                 >
                   {on && <span className="size-2 rounded-full bg-on-tint" />}

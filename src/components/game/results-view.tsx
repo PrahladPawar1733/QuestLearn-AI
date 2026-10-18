@@ -146,7 +146,7 @@ export function ResultsView({ questId, sessionId, data }: { questId: string; ses
           <span aria-hidden>·</span>
           <span>{data.quest.title}</span>
           <span aria-hidden>·</span>
-          <OriginBadge origin={data.quest.origin} className="t-footnote font-normal" />
+          <OriginBadge origin={data.quest.origin} />
         </p>
         <h1 className="mt-2 t-large-title text-ink">What you learned</h1>
         <p className="mt-4 t-body text-ink">{runHeadline(data.perConcept)}</p>

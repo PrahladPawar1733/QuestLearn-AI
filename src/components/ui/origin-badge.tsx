@@ -14,7 +14,7 @@ const LABELS: Record<ContentOrigin, { label: string; title: string }> = {
 export function OriginBadge({ origin, className }: { origin: ContentOrigin; className?: string }) {
   const l = LABELS[origin];
   return (
-    <Badge title={l.title} className={className}>
+    <Badge tone={origin === "ai_generated" ? "primary" : origin === "demo_prepared" ? "amber" : "cyan"} title={l.title} className={className}>
       {l.label}
     </Badge>
   );

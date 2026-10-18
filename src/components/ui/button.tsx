@@ -4,33 +4,33 @@ import * as React from "react";
 import { cn } from "@/lib/cn";
 
 /**
- * Buttons: one filled (primary), the rest hairline or text.
+ * Buttons: a brand-gradient primary, white secondary, tinted and text variants.
  * Feedback happens on pointer-down (scale 0.97) and is instant.
  */
 const buttonVariants = cva(
-  "pressable inline-flex select-none items-center justify-center gap-2 whitespace-nowrap font-medium disabled:pointer-events-none disabled:opacity-40 [&_svg]:size-[1.05em] [&_svg]:shrink-0",
+  "pressable inline-flex select-none items-center justify-center gap-2 whitespace-nowrap font-semibold disabled:pointer-events-none disabled:opacity-45 [&_svg]:size-[1.05em] [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        /** Ink on paper: the one primary action on a screen. */
-        primary: "bg-tint text-on-tint hover:bg-primary-strong",
+        /** Brand gradient with a soft glow: the one primary action on a screen. */
+        primary: "bg-brand text-on-tint shadow-[0_8px_20px_-8px_rgb(91_69_240/0.7)] hover:brightness-110",
         /** Green: commit after a correct answer. */
-        success: "bg-success-fill text-white hover:brightness-105",
-        /** Hairline buttons for everything secondary. */
-        secondary: "bg-surface text-ink shadow-[inset_0_0_0_1px_var(--line-strong)] hover:bg-fill-4",
-        tinted: "bg-surface text-ink shadow-[inset_0_0_0_1px_var(--line-strong)] hover:bg-fill-4",
-        outline: "bg-surface text-ink shadow-[inset_0_0_0_1px_var(--line-strong)] hover:bg-fill-4",
-        /** Text-only. */
-        ghost: "text-ink hover:bg-fill-4",
+        success: "bg-success-fill text-white shadow-[0_8px_20px_-8px_rgb(22_163_74/0.6)] hover:brightness-105",
+        /** White with depth, for secondary actions. */
+        secondary: "bg-surface text-ink shadow-[0_1px_2px_rgb(30_24_90/0.06),inset_0_0_0_1px_var(--line-strong)] hover:bg-surface-2",
+        outline: "bg-surface text-ink shadow-[inset_0_0_0_1px_var(--line-strong)] hover:bg-surface-2",
+        /** Soft brand tint. */
+        tinted: "bg-tint/10 text-tint hover:bg-tint/15",
+        ghost: "text-tint hover:bg-tint/8",
         plain: "text-muted hover:bg-fill-4 hover:text-ink",
-        danger: "text-danger shadow-[inset_0_0_0_1px_var(--line-strong)] hover:bg-danger-fill/8",
-        amber: "text-ink shadow-[inset_0_0_0_1px_var(--line-strong)] hover:bg-fill-4",
+        danger: "bg-danger-fill/10 text-danger hover:bg-danger-fill/15",
+        amber: "bg-amber-fill/12 text-amber hover:bg-amber-fill/18",
       },
       size: {
-        sm: "h-8 rounded-lg px-3 text-[0.8125rem]",
-        md: "h-10 rounded-[10px] px-4 text-[0.9375rem]",
-        lg: "h-11 rounded-[10px] px-5 text-[0.9375rem]",
-        icon: "size-9 rounded-lg",
+        sm: "h-8 rounded-[10px] px-3 text-[0.8125rem]",
+        md: "h-10 rounded-xl px-4 text-[0.9375rem]",
+        lg: "h-12 rounded-[14px] px-6 text-[1rem]",
+        icon: "size-9 rounded-xl",
       },
     },
     defaultVariants: { variant: "primary", size: "md" },

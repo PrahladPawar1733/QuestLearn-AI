@@ -24,12 +24,12 @@ export function TutorHeader({ data, actions }: { data: ExplainResult | null; loa
     <div className="px-5 pb-4 pt-1">
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <h2 id="tutor-heading" className="t-headline text-ink">
+          <h2 id="tutor-heading" className="t-title3 text-ink">
             Not quite
           </h2>
           <p className="truncate t-footnote text-muted">{data ? data.tutor.conceptTitle : "Here's what to look at."}</p>
         </div>
-        {data && !data.pending && <OriginBadge origin={data.origin} className="mt-1 shrink-0 text-faint" />}
+        {data && !data.pending && <OriginBadge origin={data.origin} className="mt-1 shrink-0" />}
       </div>
       <div className="mt-3 flex gap-2">
         {actions.canFollowUp && (
@@ -110,7 +110,7 @@ export function TutorBody({
       )}
 
       {/* Your answer vs. the right one */}
-      <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+      <dl className="grid gap-2.5 sm:grid-cols-2">
         <AnswerTile tone="wrong" label="You chose" id={data.selectedOption.id} text={data.selectedOption.text} />
         <AnswerTile tone="right" label="Correct" id={data.correctOption.id} text={data.correctOption.text} />
       </dl>
@@ -131,7 +131,7 @@ export function TutorBody({
       {t.keyEquations.length > 0 && (
         <div className="grid gap-2 sm:grid-cols-2">
           {t.keyEquations.map((k, i) => (
-            <div key={i} className="rounded-xl bg-surface-2 px-4 py-3">
+            <div key={i} className="rounded-2xl bg-tint/6 px-4 py-3 ring-1 ring-tint/10">
               <Tex tex={k.latex} display className="block text-ink" />
               <p className="t-footnote text-muted">{k.meaning}</p>
             </div>
@@ -146,7 +146,7 @@ export function TutorBody({
           <AnimatePresence initial={false}>
             {t.steps.slice(0, stepsShown).map((s, i) => (
               <motion.li key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex gap-3">
-                <span className="w-4 shrink-0 pt-px t-callout text-faint tabular">{i + 1}</span>
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-brand t-caption font-bold text-white">{i + 1}</span>
                 <div className="min-w-0">
                   {s.title && !/^Step \d+$/.test(s.title) && <p className="t-subhead font-semibold text-ink">{s.title}</p>}
                   <RichText as="div" text={s.body} className="t-callout text-ink" />
@@ -178,7 +178,7 @@ export function TutorBody({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
-      <h3 className="mb-1.5 t-eyebrow text-muted">{title}</h3>
+      <h3 className="mb-1.5 t-eyebrow text-tint">{title}</h3>
       {children}
     </section>
   );
@@ -187,10 +187,10 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function AnswerTile({ tone, label, id, text }: { tone: "wrong" | "right"; label: string; id: string; text: string }) {
   const right = tone === "right";
   return (
-    <div className={right ? "border-l-2 border-success-fill pl-3" : "border-l-2 border-danger-fill pl-3"}>
-      <dt className={`t-footnote ${right ? "text-success" : "text-danger"}`}>{label}</dt>
-      <dd className="t-callout text-ink">
-        <span className="mr-1.5 font-medium">{id}.</span>
+    <div className={right ? "rounded-2xl bg-success-fill/8 p-3.5 ring-1 ring-success-fill/25" : "rounded-2xl bg-danger-fill/7 p-3.5 ring-1 ring-danger-fill/20"}>
+      <dt className={`t-footnote font-semibold ${right ? "text-success" : "text-danger"}`}>{label}</dt>
+      <dd className="mt-0.5 t-callout text-ink">
+        <span className="mr-1.5 font-bold">{id}.</span>
         <RichText text={text} />
       </dd>
     </div>

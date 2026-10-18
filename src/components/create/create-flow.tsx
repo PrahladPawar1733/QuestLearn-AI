@@ -549,10 +549,13 @@ export function CreateFlow({
             animate={{ scale: dragOver ? 1.01 : 1 }}
             transition={spring.snappy}
             className={cn(
-              "flex flex-col items-center justify-center rounded-2xl border border-dashed px-6 py-12 text-center transition-colors",
-              dragOver ? "border-tint bg-fill-4" : "border-line-strong bg-surface",
+              "flex flex-col items-center justify-center rounded-[24px] border-2 border-dashed px-6 py-12 text-center transition-colors",
+              dragOver ? "border-tint bg-tint/8" : "border-tint/25 bg-tint/[0.03]",
             )}
           >
+            <span className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-brand text-white shadow-[0_10px_24px_-10px_rgb(91_69_240/0.8)]" aria-hidden>
+              <UploadCloud className="size-7" />
+            </span>
             <p className="t-headline text-ink">{dragOver ? "Release to add" : "Drop your notes here"}</p>
             <p className="mt-1 t-footnote text-muted">
               PDF, JPG, PNG or WebP · up to {limits.maxFileMB} MB each, {limits.maxFiles} files, {limits.maxTotalMB} MB total

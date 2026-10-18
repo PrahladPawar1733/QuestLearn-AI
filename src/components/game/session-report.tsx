@@ -33,7 +33,7 @@ export function SessionReport({ sessionId }: { sessionId: string }) {
         <h2 id="report-h" className="t-headline text-ink">
           Your report
         </h2>
-        {report && <OriginBadge origin={report.origin} className="text-faint" />}
+        {report && <OriginBadge origin={report.origin} />}
       </div>
 
       {!report && !error && (

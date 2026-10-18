@@ -19,18 +19,18 @@ export function FeedbackHeader({ result, onContinue, busy }: { result: AnswerRes
       <motion.span
         initial={reduced ? false : { scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="flex size-8 shrink-0 items-center justify-center rounded-full bg-success-fill text-white"
+        className="flex size-10 shrink-0 items-center justify-center rounded-full bg-success-fill text-white shadow-[0_6px_16px_-6px_rgb(22_163_74/0.7)]"
         aria-hidden
       >
         <Check className="size-4" strokeWidth={3} />
       </motion.span>
       <div className="min-w-0 flex-1">
         <p className="t-headline text-ink">{result.isFollowUp ? "Mistake fixed" : "Correct"}</p>
-        <p className="truncate t-footnote text-muted" title={result.xpBreakdown.map((b) => `${b.label} ${b.xp > 0 ? "+" : ""}${b.xp}`).join(" · ")}>
+        <p className="truncate t-footnote font-semibold text-success" title={result.xpBreakdown.map((b) => `${b.label} ${b.xp > 0 ? "+" : ""}${b.xp}`).join(" · ")}>
           +{result.xpAwarded} XP
         </p>
       </div>
-      <Button ref={btn} onClick={onContinue} disabled={busy}>
+      <Button ref={btn} variant="success" onClick={onContinue} disabled={busy}>
         Continue <ArrowRight />
       </Button>
     </div>

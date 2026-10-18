@@ -2,33 +2,26 @@
 
 QuestLearn's interface follows Apple's design approach, translated to the web: system typography, semantic colours that adapt to light and dark, a translucent nav bar, critically damped springs, instant press feedback, and motion that enters and leaves along the same path. The source rules are in the apple-design skill (`~/.agents/skills/apple-design/SKILL.md`).
 
-## Principle: minimal, not decorated
+## Principle: bright & playful, always light
 
-The interface should look made by a person with taste, not assembled from a template. In practice:
+A modern learning app: light and friendly, with one confident brand colour and real depth.
 
-- **One accent, and it is the ink.** Primary buttons, selection and progress are black on white (white on black in dark mode). Colour appears only where it means something: green = right, red = wrong, amber = caution.
-- **Hierarchy from type and space, not boxes.** Prefer a hairline (`border-line`) or plain spacing over a card. Cards, where used, are a 1px hairline with no shadow.
-- **No decoration.** No icon tiles, sparkle icons, emoji, gradient logos, glow shadows, or "AI" badges. An icon appears only when it is the clearest label (pause, close, chevron).
-- **No pills for metadata.** Subject, difficulty and origin are plain grey text joined with " · ". `Badge` renders as small text, coloured only for meaning.
-- **Sentence case everywhere**, including buttons ("Start quest", not "Start Quest"). Section labels (`t-eyebrow`) are small and quiet, never uppercase.
-- **Short, plain copy.** One sentence where three were used; no em-dash asides; no "Welcome, Explorer".
-- **Honesty is kept:** content origin is still always shown (`OriginBadge`: "Sample", "Generated from a template", "AI-written, checked"), just quietly.
+- **Always light.** No dark theme; `color-scheme: light`.
+- **Brand = violet → blue.** `--tint` (#5b45f0) with `--tint-2` (#3b82f6). Primary buttons, progress and hero accents use the `.bg-brand` gradient; key words can use `.text-brand`.
+- **Cards have depth.** `.surface` is white with a soft shadow and faint edge (in `@layer components`, so ring/shadow utilities can override it for selected and hover states). Generous radii (20-24px).
+- **Tinted chips are back, gently.** `Badge` tones are soft tinted pills; colour always comes with a label. Meaning colours stay: green right, red wrong, amber caution.
+- **Hero areas glow.** `.hero-glow` puts soft violet/blue radial light behind landing content.
+- **Still no clutter:** sentence case, short copy, no sparkle icons on buttons, no icon tile on every item.
 
 ## Color
 
-All colours are semantic tokens in `src/app/globals.css` and switch with `prefers-color-scheme`. Never hard-code a hex value in UI chrome.
-
-| Token | Light | Dark | Role |
-|---|---|---|---|
-| `--bg` / `--surface` | `#ffffff` | `#0a0a0a` / `#111111` | page, cards |
-| `--surface-2` | `#f5f5f5` | `#1a1a1a` | wells: equations, notes |
-| `--text` | `#111111` | `#f2f2f2` | primary text |
-| `--muted` / `--faint` | `#5c5c5c` / `#737373` | `#a3a3a3` / `#858585` | secondary / non-essential text |
-| `--line` / `--line-strong` | black 9% / `#d4d4d4` | white 10% / `#2e2e2e` | hairlines |
-| `--tint` / `--on-tint` | `#111111` / `#ffffff` | `#f2f2f2` / `#0a0a0a` | the accent (ink) |
-| `--green(-fill)` `--red(-fill)` `--orange(-fill)` | meaning colours | lifted for dark | right / wrong / caution |
-
-Sheets and dialogs (`material-thick`) are solid; only the nav bar is translucent.
+| Token | Value | Role |
+|---|---|---|
+| `--bg` | `#f6f6fb` | soft lilac-grey canvas |
+| `--surface` / `--surface-2` | `#ffffff` / `#f2f1fa` | cards / wells |
+| `--text` / `--muted` / `--faint` | `#17152b` / `#5a5873` / `#75738c` | text |
+| `--tint` / `--tint-2` | `#5b45f0` / `#3b82f6` | brand gradient |
+| `--green` `--red` `--orange` (+ `-fill`) | | right / wrong / caution |
 
 ## Typography
 
@@ -44,7 +37,7 @@ System font everywhere (SF Pro on Apple devices). Use the text-style utilities; 
 | `t-body` | paragraphs |
 | `t-callout`, `t-subhead` | dense UI text, list rows |
 | `t-footnote`, `t-caption` | metadata |
-| `t-eyebrow` | small sentence-case section labels |
+| `t-eyebrow` | small sentence-case section labels (often in brand colour) |
 
 One typeface: headings are semibold (600), never bold-black. Numbers use `tabular` figures (`font-rounded` now maps to the system font). Build hierarchy with weight + size + leading together; emphasize with weight, not with color.
 

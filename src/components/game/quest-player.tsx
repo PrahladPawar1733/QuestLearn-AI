@@ -268,7 +268,7 @@ export function QuestPlayer({ initial, videoEnabled }: { initial: SessionView; v
               animate={{ opacity: 1, x: 0 }}
               exit={reduced ? { opacity: 0 } : { opacity: 0, x: -40 }}
               transition={reduced ? fade : spring.default}
-              className="space-y-6 py-2"
+              className="surface space-y-5 rounded-[24px] p-5 sm:p-7"
             >
               <QuestionCard q={q} hint={hint} settled={settled} />
               <World
@@ -368,7 +368,7 @@ function InlinePanel({ children, tone, reduced, labelledBy }: { children: React.
       animate={{ opacity: 1, y: 0 }}
       exit={reduced ? { opacity: 0 } : { opacity: 0, y: 32 }}
       transition={reduced ? fade : spring.default}
-      className={cn("surface overflow-hidden rounded-2xl pt-3", tone === "success" && "outline-success-fill/40")}
+      className={cn("surface overflow-hidden rounded-[24px] pt-3", tone === "success" && "ring-2 ring-success-fill/40")}
       aria-live="polite"
     >
       {children}

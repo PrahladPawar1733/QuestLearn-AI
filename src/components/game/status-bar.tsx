@@ -32,20 +32,20 @@ export function StatusBar({
   pauseRef?: React.Ref<HTMLButtonElement>;
 }) {
   return (
-    <div className="material-chrome sticky top-14 z-30 -mx-4 border-b border-line px-4 py-3 sm:mx-0 sm:rounded-xl sm:border sm:px-4">
+    <div className="material-chrome sticky top-16 z-30 rounded-2xl px-3 py-2.5 shadow-[var(--shadow-card)] ring-1 ring-line sm:px-4">
       <div className="flex items-center gap-3">
         <button
           ref={pauseRef}
           type="button"
           onClick={onPause}
-          className="pressable -ml-1.5 flex size-8 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-fill-4 hover:text-ink"
+          className="pressable flex size-9 shrink-0 items-center justify-center rounded-xl bg-fill-3 text-ink hover:bg-fill-2"
           aria-label="Pause quest"
         >
           <Pause className="size-4" />
         </button>
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-2">
-            <p className="truncate t-subhead font-medium text-ink">{title}</p>
+            <p className="truncate t-subhead font-semibold text-ink">{title}</p>
             <p className="shrink-0 t-footnote text-muted tabular">
               {isFollowUp ? (
                 <span className="text-ink">Follow-up</span>
@@ -62,19 +62,25 @@ export function StatusBar({
               <span
                 key={i}
                 className={cn(
-                  "h-[3px] flex-1 rounded-full transition-colors duration-300",
-                  outcomes[i] === "correct" && "bg-tint",
+                  "h-1.5 flex-1 rounded-full transition-colors duration-300",
+                  outcomes[i] === "correct" && "bg-success-fill",
                   outcomes[i] === "wrong" && "bg-danger-fill",
-                  !outcomes[i] && i === outcomes.length && "bg-tint/35",
+                  !outcomes[i] && i === outcomes.length && "bg-brand",
                   !outcomes[i] && i !== outcomes.length && "bg-fill-2",
                 )}
               />
             ))}
           </div>
         </div>
-        <div className="relative hidden shrink-0 t-footnote text-muted tabular sm:block" aria-live="polite">
-          {streak >= 2 && <span title="Correct answers in a row">{streak} in a row · </span>}
-          <span aria-label={`${xp} XP`}>{xp} XP</span>
+        <div className="relative hidden shrink-0 items-center gap-1.5 sm:flex" aria-live="polite">
+          {streak >= 2 && (
+            <span className="rounded-full bg-amber-fill/14 px-2.5 py-1 font-rounded t-footnote font-bold text-amber tabular" title="Correct answers in a row">
+              🔥 {streak}
+            </span>
+          )}
+          <span className="rounded-full bg-tint/10 px-2.5 py-1 font-rounded t-footnote font-bold text-tint tabular" aria-label={`${xp} XP`}>
+            {xp} XP
+          </span>
           <AnimatePresence>
             {xpGain ? (
               <motion.span

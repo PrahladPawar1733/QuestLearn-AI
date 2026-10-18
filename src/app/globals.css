@@ -2,110 +2,63 @@
 @import "katex/dist/katex.min.css";
 
 /* ==================================================================
-   QuestLearn design tokens: minimal.
-   Neutral greys and ink, one accent (the ink itself), and colour only
-   where it carries meaning: green = right, red = wrong, amber = caution.
-   Depth comes from hairlines and spacing, not shadows or tinted cards.
+   QuestLearn design tokens: bright & playful, always light.
+   A light canvas, white cards with soft depth, one confident violet
+   brand colour (with a blue partner for gradients), and clear meaning
+   colours: green = right, red = wrong, amber = caution.
    Token names follow Apple's semantic architecture (see
    docs/design-system.md), so call sites never name a raw colour.
    ================================================================== */
 
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 
-  --bg: #ffffff;
+  --bg: #f6f6fb; /* soft lilac-grey canvas */
   --surface: #ffffff;
-  --surface-2: #f5f5f5; /* wells: answer options, inputs */
-  --surface-3: #e8e8e8; /* tracks, inactive rails */
-  --bg-2: #fafafa;
+  --surface-2: #f2f1fa; /* wells: equations, notes, options */
+  --surface-3: #e6e4f3;
+  --bg-2: #efeef8;
 
-  --text: #111111;
-  --muted: #5c5c5c; /* 6.9:1 */
-  --faint: #737373; /* 4.7:1 */
-  --line: rgb(0 0 0 / 0.09);
-  --line-strong: #d4d4d4;
+  --text: #17152b;
+  --muted: #5a5873; /* 6.6:1 */
+  --faint: #75738c; /* 4.6:1 */
+  --line: rgb(40 32 110 / 0.09);
+  --line-strong: #dcdaeb;
 
-  --fill: rgb(0 0 0 / 0.08);
-  --fill-2: rgb(0 0 0 / 0.06);
-  --fill-3: rgb(0 0 0 / 0.045);
-  --fill-4: rgb(0 0 0 / 0.03);
+  --fill: rgb(60 50 140 / 0.1);
+  --fill-2: rgb(60 50 140 / 0.075);
+  --fill-3: rgb(60 50 140 / 0.055);
+  --fill-4: rgb(60 50 140 / 0.035);
 
-  /* The accent is the ink: primary buttons, selection, progress. */
-  --tint: #111111;
-  --tint-pressed: #333333;
+  /* Brand: violet, with blue as its gradient partner. */
+  --tint: #5b45f0; /* 5.9:1 on white */
+  --tint-pressed: #4a35d8;
   --on-tint: #ffffff;
+  --tint-2: #3b82f6;
 
-  /* Meaning colours. TEXT tokens for text/icons, FILL tokens carry white text. */
-  --green: #1a7f37;
-  --green-fill: #1f883d;
-  --red: #c4232d;
-  --red-fill: #cf222e;
-  --orange: #8a5a00;
-  --orange-fill: #b07b00;
-  --blue: #0969da;
-  --cyan: #0b6680;
-  --teal: #1b7c83;
-  --yellow: #d4a72c;
-  --purple: #6e56cf;
-  --pink: #bf3989;
-  --chart-2: #a3a3a3;
+  --green: #15803d;
+  --green-fill: #16a34a;
+  --red: #c81e3a;
+  --red-fill: #e11d48;
+  --orange: #9a5b00;
+  --orange-fill: #d97706;
+  --blue: #2563eb;
+  --cyan: #0e7490;
+  --teal: #0d9488;
+  --yellow: #f5b70a;
+  --purple: #7c3aed;
+  --pink: #db2777;
+  --chart-2: #3b82f6;
 
-  --material-chrome: rgb(255 255 255 / 0.82);
-  --material-thick: #ffffff; /* sheets and dialogs are solid: text over blurred text never reads well */
+  --material-chrome: rgb(255 255 255 / 0.78);
+  --material-thick: #ffffff;
   --material-thin: rgb(255 255 255 / 0.7);
-  --scrim: rgb(0 0 0 / 0.28);
-  --shadow-card: none;
-  --shadow-float: 0 1px 2px rgb(0 0 0 / 0.06), 0 8px 28px rgb(0 0 0 / 0.1);
-  --highlight-edge: transparent;
+  --scrim: rgb(23 21 43 / 0.32);
+  --shadow-card: 0 1px 2px rgb(30 24 90 / 0.05), 0 8px 24px -6px rgb(30 24 90 / 0.1);
+  --shadow-float: 0 2px 6px rgb(30 24 90 / 0.08), 0 20px 48px -12px rgb(30 24 90 / 0.22);
+  --highlight-edge: rgb(255 255 255 / 0.8);
 
-  --radius: 14px;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0a0a0a;
-    --surface: #111111;
-    --surface-2: #1a1a1a;
-    --surface-3: #262626;
-    --bg-2: #141414;
-
-    --text: #f2f2f2;
-    --muted: #a3a3a3;
-    --faint: #858585;
-    --line: rgb(255 255 255 / 0.1);
-    --line-strong: #2e2e2e;
-
-    --fill: rgb(255 255 255 / 0.12);
-    --fill-2: rgb(255 255 255 / 0.09);
-    --fill-3: rgb(255 255 255 / 0.07);
-    --fill-4: rgb(255 255 255 / 0.05);
-
-    --tint: #f2f2f2;
-    --tint-pressed: #d4d4d4;
-    --on-tint: #0a0a0a;
-
-    --green: #4ac26b;
-    --green-fill: #238636;
-    --red: #ff7b72;
-    --red-fill: #da3633;
-    --orange: #d29922;
-    --orange-fill: #9e6a03;
-    --blue: #1f6feb;
-    --cyan: #56c2e0;
-    --teal: #1f8a91;
-    --yellow: #d4a72c;
-    --purple: #7c66d6;
-    --pink: #c94f96;
-    --chart-2: #6b6b6b;
-
-    --material-chrome: rgb(10 10 10 / 0.78);
-    --material-thick: #151515;
-    --material-thin: rgb(26 26 26 / 0.7);
-    --scrim: rgb(0 0 0 / 0.6);
-    --shadow-card: none;
-    --shadow-float: 0 8px 28px rgb(0 0 0 / 0.5);
-    --highlight-edge: transparent;
-  }
+  --radius: 20px;
 }
 
 @theme inline {
@@ -124,6 +77,7 @@
   --color-fill-3: var(--fill-3);
   --color-fill-4: var(--fill-4);
   --color-tint: var(--tint);
+  --color-tint-2: var(--tint-2);
   --color-on-tint: var(--on-tint);
   /* legacy aliases: "primary" is the app tint */
   --color-primary: var(--tint);
@@ -148,7 +102,7 @@
 
 :root {
   --font-system: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-rounded: var(--font-system); /* minimal: one typeface; numbers use tabular figures instead */
+  --font-rounded: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 html {
@@ -247,12 +201,12 @@ body {
   line-height: 1.33;
   letter-spacing: 0.01em;
 }
-/* Section label: small, sentence case, quiet. (No shouting uppercase.) */
+/* Section label: small, sentence case, a touch of weight. */
 @utility t-eyebrow {
   font-size: 0.8125rem;
   line-height: 1.38;
   letter-spacing: 0;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 /* Headings default to tight tracking; game numbers use SF Rounded. */
@@ -271,11 +225,31 @@ body {
    Surfaces & materials
    ------------------------------------------------------------------ */
 
-/* Card: a hairline, no shadow. Drawn with an inset outline so it sits over edge-to-edge children. */
-.surface {
-  background: var(--surface);
-  outline: 1px solid var(--line);
-  outline-offset: -1px;
+/* Card: white with soft depth and a faint edge. In the components layer so
+   Tailwind ring/shadow utilities (selected states, hover lift) can override it. */
+@layer components {
+  .surface {
+    background: var(--surface);
+    box-shadow: var(--shadow-card), inset 0 0 0 1px var(--line);
+  }
+}
+
+/* Brand gradient: primary actions, progress, hero accents. */
+.bg-brand {
+  background-image: linear-gradient(135deg, var(--tint) 0%, var(--tint-2) 100%);
+}
+.text-brand {
+  background-image: linear-gradient(120deg, var(--tint) 10%, var(--tint-2) 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+/* Soft glow behind hero areas. */
+.hero-glow {
+  background:
+    radial-gradient(60% 55% at 15% 0%, rgb(91 69 240 / 0.14), transparent 70%),
+    radial-gradient(50% 50% at 90% 10%, rgb(59 130 246 / 0.12), transparent 70%),
+    radial-gradient(40% 40% at 60% 100%, rgb(236 72 153 / 0.07), transparent 70%);
 }
 
 /* Translucent floating chrome (nav bars, status bars). Content scrolls underneath. */

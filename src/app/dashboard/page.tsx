@@ -29,8 +29,8 @@ export const metadata: Metadata = { title: "Chapters · QuestLearn" };
 
 function SectionTitle({ children, note, id }: { children: React.ReactNode; note?: React.ReactNode; id?: string }) {
   return (
-    <div className="mb-1 flex items-baseline justify-between gap-3 border-b border-line pb-2">
-      <h2 id={id} className="t-headline text-ink">
+    <div className="mb-1 flex items-baseline justify-between gap-3">
+      <h2 id={id} className="t-title3 text-ink">
         {children}
       </h2>
       {note && <span className="shrink-0 t-footnote text-muted">{note}</span>}
@@ -98,13 +98,13 @@ export default async function DashboardPage() {
 
         {/* One obvious next step. */}
         {(p.continueSession || lastRun || readyMaterial?.questId) && (
-          <section aria-labelledby="continue-h" className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-2xl bg-surface-2 p-5">
+          <section aria-labelledby="continue-h" className="flex flex-wrap items-center gap-x-6 gap-y-4 rounded-[24px] bg-brand p-6 text-white shadow-[0_16px_40px_-16px_rgb(91_69_240/0.7)]">
             <div className="min-w-0 flex-1">
-              <p id="continue-h" className="t-footnote text-muted">
+              <p id="continue-h" className="t-footnote font-semibold text-white/75">
                 {p.continueSession ? "Unfinished run" : lastRun ? "Last played" : "Ready to play"}
               </p>
-              <p className="mt-0.5 truncate t-title3 text-ink">{p.continueSession?.title ?? lastRun?.title ?? readyMaterial?.title}</p>
-              <p className="mt-0.5 t-footnote text-muted tabular">
+              <p className="mt-0.5 truncate t-title2 text-white">{p.continueSession?.title ?? lastRun?.title ?? readyMaterial?.title}</p>
+              <p className="mt-0.5 t-footnote text-white/80 tabular">
                 {p.continueSession
                   ? `${p.continueSession.answered} of ${p.continueSession.playLength} answered`
                   : lastRun
@@ -114,20 +114,20 @@ export default async function DashboardPage() {
             </div>
             <div className="flex flex-wrap gap-2">
               {p.continueSession ? (
-                <Button asChild>
+                <Button asChild variant="secondary" className="text-tint">
                   <Link href={`/quest/${p.continueSession.questId}?session=${p.continueSession.id}`}>Resume</Link>
                 </Button>
               ) : lastRun ? (
                 <>
-                  <Button asChild variant="secondary">
+                  <Button asChild variant="ghost" className="text-white hover:bg-white/15">
                     <Link href={`/quest/${lastRun.questId}/results?session=${lastRun.id}`}>Results</Link>
                   </Button>
-                  <Button asChild>
+                  <Button asChild variant="secondary" className="text-tint">
                     <Link href={`/quest/${lastRun.questId}`}>Play again</Link>
                   </Button>
                 </>
               ) : (
-                <Button asChild>
+                <Button asChild variant="secondary" className="text-tint">
                   <Link href={`/quest/${readyMaterial!.questId}`}>Start</Link>
                 </Button>
               )}
@@ -136,22 +136,22 @@ export default async function DashboardPage() {
         )}
 
         <section aria-labelledby="chapters-h">
-          <SectionTitle id="chapters-h" note={<Link href="/create" className="text-ink hover:opacity-70">New quest</Link>}>
+          <SectionTitle id="chapters-h" note={<Link href="/create" className="font-semibold text-tint hover:opacity-70">+ New quest</Link>}>
             Chapters
           </SectionTitle>
-          <ul className="divide-y divide-line">
+          <ul className="mt-3 grid gap-3 sm:grid-cols-2">
             {chapters.map((c) => (
               <li key={c.questId}>
-                <Link href={`/quest/${c.questId}`} className="group flex items-center gap-4 py-4">
+                <Link href={`/quest/${c.questId}`} className="pressable surface group flex items-center gap-4 rounded-[20px] p-5 transition-shadow hover:shadow-[var(--shadow-float)]">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate t-headline text-ink group-hover:opacity-70">{c.title}</p>
+                    <p className="truncate t-headline text-ink">{c.title}</p>
                     <p className="flex flex-wrap items-center gap-x-1.5 t-footnote text-muted">
                       <span>{c.subject}</span>
                       <span aria-hidden>·</span>
-                      <OriginBadge origin={c.origin} className="t-footnote font-normal" />
+                      <OriginBadge origin={c.origin} />
                     </p>
                   </div>
-                  <div className="w-28 shrink-0 text-right sm:w-36">
+                  <div className="w-24 shrink-0 text-right">
                     <p className="t-footnote text-muted tabular">
                       {c.conceptsPractised} / {c.conceptsTotal} concepts
                     </p>

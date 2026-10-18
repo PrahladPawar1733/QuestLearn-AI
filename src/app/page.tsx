@@ -42,9 +42,15 @@ export default async function Landing() {
       </header>
 
       <main className="flex-1">
+        <div className="hero-glow">
         <section className="mx-auto grid max-w-5xl items-center gap-12 px-4 pb-20 pt-16 sm:px-6 sm:pt-24 lg:grid-cols-[1fr_1.05fr] lg:gap-16">
           <div>
-            <h1 className="max-w-xl t-display text-ink">Turn your notes into a game.</h1>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-surface px-3 py-1 t-footnote font-semibold text-tint shadow-[var(--shadow-card)] ring-1 ring-line">
+              <span className="size-1.5 rounded-full bg-success-fill" aria-hidden /> Works with handwritten notes
+            </span>
+            <h1 className="mt-5 max-w-xl t-display text-ink">
+              Turn your notes into <span className="text-brand">a game.</span>
+            </h1>
             <p className="mt-5 max-w-md t-body text-muted">
               Upload a chapter and QuestLearn writes questions from it. Then play them: in Spider Climb, every right answer swings you to the next rooftop.
             </p>
@@ -58,15 +64,19 @@ export default async function Landing() {
             </div>
             <p className="mt-4 t-footnote text-faint">No sign-up. Progress is saved on this device.</p>
           </div>
-          <SpiderHero href={spiderDemo} />
+          <div className="rounded-[22px] shadow-[var(--shadow-float)]">
+            <SpiderHero href={spiderDemo} />
+          </div>
         </section>
+        </div>
 
-        <section className="border-t border-line">
-          <ol className="mx-auto grid max-w-5xl gap-10 px-4 py-16 sm:px-6 md:grid-cols-3 md:gap-12">
+        <section className="mx-auto max-w-5xl px-4 pb-20 sm:px-6">
+          <h2 className="t-title2 text-ink">How it works</h2>
+          <ol className="mt-6 grid gap-4 md:grid-cols-3">
             {STEPS.map((s, i) => (
-              <li key={s.title}>
-                <p className="t-footnote text-faint tabular">0{i + 1}</p>
-                <h2 className="mt-2 t-headline text-ink">{s.title}</h2>
+              <li key={s.title} className="surface rounded-[20px] p-6">
+                <span className="flex size-9 items-center justify-center rounded-xl bg-brand font-rounded t-headline text-white shadow-[0_6px_14px_-6px_rgb(91_69_240/0.7)]">{i + 1}</span>
+                <h3 className="mt-4 t-headline text-ink">{s.title}</h3>
                 <p className="mt-1.5 t-subhead text-muted">{s.body}</p>
               </li>
             ))}
