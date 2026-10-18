@@ -336,6 +336,8 @@ export function GamePlayer({ initial, module: mod, concepts = [] }: Props) {
           ? { ...first, correct: optionId === first.correctOptionId, selectedOptionId: optionId, xpAwarded: 0, achievements: [] }
           : await director.answer(optionId, { kind: "none" });
         firstMissRef.current = null;
+        // Give the game the worked explanation before it animates, so its "correct" banner can show it.
+        (game as unknown as { setExplanation?: (t: string) => void }).setExplanation?.call(game, result.explanation);
         game.settleQuestion?.(result.correct, result.correctOptionId);
         if (result.correct) {
           openQuestionRef.current = null;

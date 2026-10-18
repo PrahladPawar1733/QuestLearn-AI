@@ -55,8 +55,12 @@ export function QuestLobby({ quest, concepts, active, completedRuns, defaultWorl
         <p className="flex flex-wrap items-center gap-x-2 t-footnote text-muted">
           <span>{quest.subject}</span>
           <span aria-hidden>·</span>
-          <span>Grade {quest.grade}</span>
-          <span aria-hidden>·</span>
+          {quest.grade && (
+            <>
+              <span>Grade {quest.grade}</span>
+              <span aria-hidden>·</span>
+            </>
+          )}
           <OriginBadge origin={quest.origin} />
         </p>
         <h1 className="mt-2 t-large-title text-ink sm:t-display">{quest.title}</h1>

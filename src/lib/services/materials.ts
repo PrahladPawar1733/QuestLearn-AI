@@ -7,7 +7,7 @@ import { AppError, Errors } from "../errors";
 import { newId, nowIso } from "../ids";
 import { ingestFile, validateBatch } from "../ingest/files";
 import { blobs } from "../storage";
-import type { Attempt, Concept, ConceptMastery, LearningAsset, Material, ProcessingStage, Quest, Question, QuestSettings, Session } from "../types";
+import { normalizeGrade, normalizeSubject, type Attempt, type Concept, type ConceptMastery, type LearningAsset, type Material, type ProcessingStage, type Quest, type Question, type QuestSettings, type Session } from "../types";
 import { loadOwnedMaterial } from "./access";
 
 /* ------------------------------------------------------------------ */
@@ -166,6 +166,11 @@ export async function analyzeMaterial(uid: string, materialId: string) {
     await save(m, { stage: "concepts", error: undefined });
     try {
       const { extracted, templateKeys } = await extractChapter(m.transcription!, m.settings, m.title, uid, m.id);
+      // Subject and grade the student didn't choose come from the notes; questions, the quest and the
+      // dashboard all read them from settings, so they are filled in here before anything else uses them.
+      if (m.settings.autoDetect) {
+        m.settings = { ...m.settings, subject: normalizeSubject(extracted.subject), grade: normalizeGrade(extracted.grade) };
+      }
       for (const c of extracted.concepts) {
         const concept: Concept = {
           id: `${m.id}--${c.key}`,

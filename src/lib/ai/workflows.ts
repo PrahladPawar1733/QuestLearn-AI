@@ -113,7 +113,11 @@ export async function extractChapter(pages: TranscribedPage[], settings: QuestSe
     system: EXTRACT_SYSTEM,
     parts: [
       {
-        text: `Student settings: subject=${settings.subject}, grade=${settings.grade}, chapter title given by student="${title}", goal="${settings.goal}".\n\nTRANSCRIPTION:\n${transcript}`,
+        text: `${
+          settings.autoDetect
+            ? `The student did not say the subject or grade: detect them from the notes. "subject" must be one of Physics, Chemistry, Mathematics, Biology, Other. "grade" is the school class as a number (e.g. "11"), or "" if the notes don't make it clear.`
+            : `Student settings: subject=${settings.subject}, grade=${settings.grade}.`
+        } Chapter title given by student="${title}", goal="${settings.goal}".\n\nTRANSCRIPTION:\n${transcript}`,
       },
     ],
     temperature: 0.2,

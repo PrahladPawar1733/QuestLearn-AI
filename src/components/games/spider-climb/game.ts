@@ -216,7 +216,8 @@ export class SpiderClimbGame implements LearningGame<SpiderHud> {
     // Health is per gap: the run ends when the questions do, never because webs ran out
     // (the engine's game-over panel isn't part of this HUD, so a run that died just stopped).
     // Two misses already reveal the answer, so a full set can never reach zero.
-    this.engine.setState({ phase: this.engine.h.mode === "edge" ? "question" : this.engine.state.phase, tried: [], selected: -1, hearts: 3, banner: null });
+    this.queued = -1;
+    this.engine.setState({ phase: this.engine.h.mode === "edge" ? "question" : this.engine.state.phase, tried: [], selected: -1, hearts: 3 });
   }
 
   /** The student webbed onto an anchor. Ask the host to score it. */
@@ -239,8 +240,20 @@ export class SpiderClimbGame implements LearningGame<SpiderHud> {
   presentChoice(optionId: string) {
     const k = this.question?.options.findIndex((o) => o.id === optionId) ?? -1;
     if (k < 0) return;
-    this.engine.choose(k);
+    if (this.engine.state.phase === "question") {
+      this.engine.choose(k);
+      return;
+    }
+    // Tapped while the hero is still running to the gap: lock the choice in (and show it),
+    // then fire the web on arrival. Ignoring the tap made the buttons feel broken.
+    if (this.engine.state.phase === "move" && this.queued < 0) {
+      this.queued = k;
+      this.publish(this.engine.state);
+    }
   }
+
+  /** A choice made before the hero reached the gap; fired as soon as the anchors open. */
+  private queued = -1;
 
   /** The server has scored it: the rope holds, or it snaps. */
   settleQuestion(correct: boolean, correctOptionId: string) {
@@ -262,6 +275,10 @@ export class SpiderClimbGame implements LearningGame<SpiderHud> {
   }
 
   private pendingExplain = "";
+  /** The worked explanation for the answer being scored; shown in the engine's banner. */
+  setExplanation(text: string) {
+    this.pendingExplain = text;
+  }
   /**
    * Called on a wrong anchor with the server's targeted feedback, so the
    * student is told WHY that option was tempting rather than just "no".
@@ -329,14 +346,20 @@ export class SpiderClimbGame implements LearningGame<SpiderHud> {
       this.bannerTimer = setTimeout(() => {
         this.bannerTimer = null;
         if (!this.disposed) this.engine.setState({ banner: null });
-      }, 4500);
+      }, 9000); // long enough to read the answer and its explanation
     }
     const h = this.hud;
     h.intent = this.learning.intent;
     h.conceptTitle = this.question?.conceptTitle ?? "";
     h.question = this.question;
     h.tried = s.tried ?? [];
-    h.selected = s.selected ?? -1;
+    h.selected = this.queued >= 0 ? this.queued : (s.selected ?? -1);
+    if (this.queued >= 0 && s.phase === "question") {
+      const k = this.queued;
+      this.queued = -1;
+      // Outside this state callback, so the engine isn't re-entered mid-update.
+      setTimeout(() => !this.disposed && this.engine.choose(k), 0);
+    }
     h.phase = s.phase;
     h.hearts = s.hearts;
     h.score = s.score;

@@ -10,11 +10,12 @@ import { DifficultyPreference, Subject } from "@/lib/types";
 
 const Fields = z.object({
   title: z.string().max(120).default(""),
-  subject: Subject.default("Physics"),
-  grade: z.string().max(20).default("11"),
+  // Optional: when left out, they are read from the notes during analysis.
+  subject: Subject.optional(),
+  grade: z.string().max(20).optional(),
   goal: z.string().max(200).default(""),
   difficulty: DifficultyPreference.default("mixed"),
-  questionCount: z.coerce.number().int().min(4).max(15).default(10),
+  questionCount: z.coerce.number().int().min(4).max(15).default(5),
 });
 
 /** POST /api/materials: multipart upload of PDFs / images + quest settings. */
@@ -32,7 +33,9 @@ export const POST = handler(async (req: Request) => {
   if (!parsed.success) throw new AppError("VALIDATION", "Some of the quest settings are invalid.", 400);
   const files = form.getAll("files").filter((f): f is File => typeof f === "object" && "arrayBuffer" in f);
   const data = await Promise.all(files.map(async (f) => ({ name: f.name || "upload", data: Buffer.from(await f.arrayBuffer()) })));
-  const { title, ...settings } = parsed.data;
+  const { title, subject, grade, ...rest } = parsed.data;
+  const autoDetect = !subject;
+  const settings = { ...rest, subject: subject ?? "Other", grade: grade ?? "", autoDetect };
   const material = await createMaterial(uid, { title, settings, files: data });
   return json({ material: publicMaterial(material) }, 201);
 });

@@ -134,3 +134,18 @@ describe("template follow-up generators", () => {
     expect(f.text).not.toEqual(missed.text);
   });
 });
+
+describe("subject and grade detected from notes", () => {
+  it("maps what the model wrote onto the app's subjects and grades", async () => {
+    const { normalizeGrade, normalizeSubject } = await import("../types");
+    expect(normalizeSubject("Chemistry (Thermodynamics)")).toBe("Chemistry");
+    expect(normalizeSubject("Physical Chemistry")).toBe("Chemistry");
+    expect(normalizeSubject("Physics")).toBe("Physics");
+    expect(normalizeSubject("Maths")).toBe("Mathematics");
+    expect(normalizeSubject("History")).toBe("Other");
+    expect(normalizeGrade("Class 11")).toBe("11");
+    expect(normalizeGrade("Grade XI")).toBe("11");
+    expect(normalizeGrade("12th")).toBe("12");
+    expect(normalizeGrade("")).toBe("");
+  });
+});

@@ -6,7 +6,6 @@ import {
   ArrowUp,
   Camera,
   Check,
-  ChevronsUpDown,
   Crop,
   FileText,
   Gamepad2,
@@ -40,8 +39,7 @@ import { hasCameraSupport, type ImageQuality } from "@/lib/capture";
 import { cn } from "@/lib/cn";
 import { DEMO_QUEST_ID } from "@/lib/demo/collisions";
 import { spring } from "@/lib/motion";
-import type { DifficultyPreference, ExtractedContent, ProcessingStage, Subject } from "@/lib/types";
-import { SUBJECTS } from "@/lib/types";
+import type { DifficultyPreference, ExtractedContent, ProcessingStage } from "@/lib/types";
 
 interface LocalFile {
   id: string;
@@ -88,17 +86,14 @@ const STAGES: { id: ProcessingStage; label: string; detail: string }[] = [
   { id: "preparing", label: "Preparing your quest", detail: "Saving validated questions and concepts" },
 ];
 
-const GRADES = ["8", "9", "10", "11", "12", "Other"];
 const GOALS = ["School exam", "JEE / NEET foundation", "Board exam revision", "Understand the chapter"];
 
 export function CreateFlow({
   aiAvailable,
-  initialSubject,
   resumeMaterialId,
   limits,
 }: {
   aiAvailable: boolean;
-  initialSubject: Subject;
   resumeMaterialId: string | null;
   limits: { maxFileMB: number; maxTotalMB: number; maxFiles: number };
 }) {
@@ -106,12 +101,9 @@ export function CreateFlow({
   const [files, setFiles] = useState<LocalFile[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [title, setTitle] = useState("");
-  const [subject, setSubject] = useState<Subject>(initialSubject);
-  const [grade, setGrade] = useState("11");
   const [goal, setGoal] = useState("");
   const [difficulty, setDifficulty] = useState<DifficultyPreference>("mixed");
-  const [count, setCount] = useState(10);
+  const [count, setCount] = useState(5);
   const [uploadPct, setUploadPct] = useState<number | null>(null);
   const [material, setMaterial] = useState<MaterialDTO | null>(null);
   const [pipelineError, setPipelineError] = useState<ApiError | null>(null);
@@ -340,9 +332,7 @@ export function CreateFlow({
     }
     setFormError(null);
     const fd = new FormData();
-    fd.set("title", title || "My chapter");
-    fd.set("subject", subject);
-    fd.set("grade", grade);
+    // Title, subject and grade are read from the notes during analysis.
     fd.set("goal", goal);
     fd.set("difficulty", difficulty);
     fd.set("questionCount", String(count));
@@ -745,27 +735,8 @@ export function CreateFlow({
 
         <section className="min-w-0 space-y-5" aria-label="Quest settings">
           <div>
-            <h2 className="mb-1.5 px-4 t-eyebrow text-muted">Chapter</h2>
+            <h2 className="mb-1.5 px-4 t-eyebrow text-muted">Your goal</h2>
             <Card className="overflow-hidden">
-              <FormRow label="Title" htmlFor="title">
-                <input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Collisions" maxLength={120} className={fieldCls} />
-              </FormRow>
-              <FormRow label="Subject" htmlFor="subject">
-                <SelectField id="subject" value={subject} onChange={(v) => setSubject(v as Subject)}>
-                  {SUBJECTS.map((s) => (
-                    <option key={s}>{s}</option>
-                  ))}
-                </SelectField>
-              </FormRow>
-              <FormRow label="Class / grade" htmlFor="grade">
-                <SelectField id="grade" value={grade} onChange={setGrade}>
-                  {GRADES.map((g) => (
-                    <option key={g} value={g}>
-                      {g === "Other" ? "Other" : `Grade ${g}`}
-                    </option>
-                  ))}
-                </SelectField>
-              </FormRow>
               <FormRow label="Exam goal" htmlFor="goal" last>
                 <input
                   id="goal"
@@ -995,27 +966,15 @@ function FormRow({ label, htmlFor, last, children }: { label: string; htmlFor: s
   );
 }
 
-function SelectField({ id, value, onChange, children }: { id: string; value: string; onChange: (v: string) => void; children: React.ReactNode }) {
-  return (
-    <div className="relative flex min-w-0 items-center">
-      <select
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-11 min-w-0 cursor-pointer appearance-none rounded-md bg-transparent pr-5 text-right t-subhead text-muted"
-      >
-        {children}
-      </select>
-      <ChevronsUpDown className="pointer-events-none absolute right-0 size-3.5 text-muted" aria-hidden />
-    </div>
-  );
-}
-
 function ChapterPreview({ content }: { content: ExtractedContent }) {
   return (
     <Card role="region" className="space-y-6 p-5" aria-label="Chapter preview">
       <section>
         <h2 className="mb-1.5 t-eyebrow text-muted">Detected in your material</h2>
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {content.subject && <Badge tone="primary">{content.subject}</Badge>}
+          {content.grade && <Badge>Grade {content.grade.replace(/^(class|grade)\s*/i, "")}</Badge>}
+        </div>
         <p className="t-body text-ink">{content.summary}</p>
       </section>
       <section>

@@ -274,8 +274,30 @@ export const QuestSettings = z.object({
   goal: z.string().max(200).default(""),
   difficulty: DifficultyPreference,
   questionCount: z.number().int().min(4).max(15),
+  /** Subject and grade weren't chosen by the student: read them from the notes during analysis. */
+  autoDetect: z.boolean().optional(),
 });
 export type QuestSettings = z.infer<typeof QuestSettings>;
+
+/** Map whatever the model called the subject onto the app's subjects. */
+export function normalizeSubject(raw: string | undefined): Subject {
+  const s = (raw ?? "").toLowerCase();
+  if (/chem/.test(s)) return "Chemistry";
+  if (/phys/.test(s)) return "Physics";
+  if (/bio|botany|zoology/.test(s)) return "Biology";
+  if (/math|algebra|calculus|geometry|trigonometry|statistics/.test(s)) return "Mathematics";
+  return "Other";
+}
+
+/** "Class 11", "Grade XI", "11th" → "11"; anything unclear → "". */
+export function normalizeGrade(raw: string | undefined): string {
+  const s = (raw ?? "").toUpperCase();
+  const n = s.match(/\b(\d{1,2})(?:ST|ND|RD|TH)?\b/)?.[1];
+  if (n && +n >= 1 && +n <= 12) return String(+n);
+  const roman: Record<string, string> = { XII: "12", XI: "11", X: "10", IX: "9", VIII: "8", VII: "7", VI: "6" };
+  const r = Object.keys(roman).find((k) => new RegExp(`\\b${k}\\b`).test(s));
+  return r ? roman[r] : "";
+}
 
 export const Material = z.object({
   id: z.string(),

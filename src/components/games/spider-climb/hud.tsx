@@ -157,25 +157,30 @@ export function SpiderClimbHud({ hud, onChoose, onContinue }: GameHudProps<Spide
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                 {q.options.map((o, i) => {
                   const out = hud.tried.includes(i);
+                  const picked = hud.selected === i && !out;
+                  const open = hud.phase === "question" || hud.phase === "move";
                   return (
                     <button
                       key={o.id}
                       type="button"
-                      disabled={out || hud.phase !== "question"}
+                      aria-pressed={picked}
+                      disabled={out || !open || hud.selected >= 0}
                       onClick={() => onChoose?.(o.id)}
                       className={cn(
                         "flex min-h-[68px] items-center gap-3 rounded-[10px] p-[10px] text-left text-[13px] font-bold transition-all sm:p-[14px] sm:text-[14px]",
-                        out ? "cursor-not-allowed line-through opacity-45" : "hover:-translate-y-[2px]",
+                        out ? "cursor-not-allowed line-through opacity-45" : picked ? "" : "hover:-translate-y-[2px] disabled:hover:translate-y-0",
+                        hud.selected >= 0 && !picked && !out && "opacity-60",
                       )}
                       style={{
-                        border: `1px solid ${out ? "#3a2b32" : LINE}`,
-                        background: out ? "#1a1620" : "#151e30",
+                        border: `${picked ? 2 : 1}px solid ${out ? "#3a2b32" : picked ? MINT : LINE}`,
+                        background: out ? "#1a1620" : picked ? "#1d2a1f" : "#151e30",
+                        boxShadow: picked ? "0 0 0 4px rgba(195,241,140,0.12)" : undefined,
                         color: PAPER,
                       }}
                     >
                       <span
                         className="flex size-7 shrink-0 items-center justify-center rounded-[7px] text-[12px] font-extrabold"
-                        style={{ background: out ? "#3a2b32" : "#222d45", color: out ? "#ff8e93" : MINT }}
+                        style={{ background: out ? "#3a2b32" : picked ? MINT : "#222d45", color: out ? "#ff8e93" : picked ? "#172314" : MINT }}
                       >
                         {o.id}
                       </span>
@@ -184,8 +189,14 @@ export function SpiderClimbHud({ hud, onChoose, onContinue }: GameHudProps<Spide
                   );
                 })}
               </div>
-              <p className="mt-4 text-[11px]" style={{ color: MUTED }}>
-                Your answer picks the web anchor. A wrong one snaps — you get another go.
+              <p className="mt-4 text-[12px]" style={{ color: hud.selected >= 0 ? MINT : MUTED }} aria-live="polite">
+                {hud.selected >= 0
+                  ? hud.phase === "move"
+                    ? `Locked in ${q.options[hud.selected]?.id}. The web fires when you reach the gap.`
+                    : `Shooting a web at ${q.options[hud.selected]?.id}…`
+                  : hud.phase === "move"
+                    ? "Pick your answer now. The web fires when you reach the gap."
+                    : "Your answer picks the web anchor. A wrong one snaps, and you get another go."}
               </p>
             </>
           ) : (
