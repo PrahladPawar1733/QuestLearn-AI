@@ -8,6 +8,7 @@ import { RichText } from "@/components/math/rich-text";
 import { Button } from "@/components/ui/button";
 import { OriginBadge } from "@/components/ui/origin-badge";
 import { api, ApiError } from "@/lib/api-client";
+import { LanguageSelect, ListenButton, T, useTranslated } from "@/lib/language/client";
 import type { SessionReport as Report } from "@/lib/services/report";
 
 /** End-of-run coaching report: what to learn, why answers went wrong, what to do next. Loads after the page. */
@@ -16,6 +17,15 @@ export function SessionReport({ sessionId }: { sessionId: string }) {
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const src = report ? [report.summary, report.strengths, ...report.focus.flatMap((f) => [f.title, f.whatWentWrong, f.keyIdea, ...f.nextSteps])] : [];
+  const { texts: tr } = useTranslated(src);
+  let k = 2;
+  const view = report && {
+    ...report,
+    summary: tr[0],
+    strengths: tr[1],
+    focus: report.focus.map((f) => ({ ...f, title: tr[k++], whatWentWrong: tr[k++], keyIdea: tr[k++], nextSteps: f.nextSteps.map(() => tr[k++]) })),
+  };
 
   useEffect(() => {
     let alive = true;
@@ -31,7 +41,7 @@ export function SessionReport({ sessionId }: { sessionId: string }) {
     <section aria-labelledby="report-h" aria-busy={!report && !error}>
       <div className="mb-1 flex items-baseline justify-between gap-3 border-b border-line pb-2">
         <h2 id="report-h" className="t-headline text-ink">
-          Your report
+          <T>Your report</T>
         </h2>
         {report && <OriginBadge origin={report.origin} />}
       </div>
@@ -58,14 +68,21 @@ export function SessionReport({ sessionId }: { sessionId: string }) {
         </div>
       )}
 
-      {report && (
+      {view && (
         <motion.div initial={reduced ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }} className="pt-3">
-          {report.fallbackReason && <p className="mb-2 t-footnote text-amber">{report.fallbackReason}</p>}
-          <RichText as="p" text={report.summary} className="t-body text-ink" />
+          {view!.fallbackReason && <p className="mb-2 t-footnote text-amber">{view!.fallbackReason}</p>}
+          <RichText as="p" text={view!.summary} className="t-body text-ink" />
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <ListenButton
+              label="Listen to your report"
+              text={[view!.summary, ...view!.focus.map((f) => `${f.title}. ${f.whatWentWrong} ${f.keyIdea} ${f.nextSteps.join(" ")}`)].join(" ")}
+            />
+            <LanguageSelect />
+          </div>
 
-          {report.focus.length > 0 && (
+          {view!.focus.length > 0 && (
             <ol className="mt-2 divide-y divide-line">
-              {report.focus.map((f, i) => (
+              {view!.focus.map((f, i) => (
                 <li key={f.conceptId} className="py-5">
                   <div className="flex items-baseline gap-3">
                     <span className="t-footnote text-faint tabular">{i + 1}</span>
@@ -76,21 +93,27 @@ export function SessionReport({ sessionId }: { sessionId: string }) {
                   </div>
                   <dl className="mt-3 space-y-3 pl-6">
                     <div>
-                      <dt className="t-footnote text-muted">What went wrong</dt>
+                      <dt className="t-footnote text-muted">
+                        <T>What went wrong</T>
+                      </dt>
                       <dd className="t-callout text-ink">
                         <RichText text={f.whatWentWrong} />
                       </dd>
                     </div>
                     {f.keyIdea && (
                       <div>
-                        <dt className="t-footnote text-muted">The idea to learn</dt>
+                        <dt className="t-footnote text-muted">
+                        <T>The idea to learn</T>
+                      </dt>
                         <dd className="t-callout text-ink">
                           <RichText text={f.keyIdea} />
                         </dd>
                       </div>
                     )}
                     <div>
-                      <dt className="t-footnote text-muted">What to do</dt>
+                      <dt className="t-footnote text-muted">
+                        <T>What to do</T>
+                      </dt>
                       <dd>
                         <ul className="mt-0.5 space-y-1 t-callout text-ink">
                           {f.nextSteps.map((s, j) => (
@@ -110,7 +133,7 @@ export function SessionReport({ sessionId }: { sessionId: string }) {
             </ol>
           )}
 
-          {report.strengths && <p className="mt-1 border-t border-line pt-4 t-subhead text-muted">{report.strengths}</p>}
+          {view!.strengths && <p className="mt-1 border-t border-line pt-4 t-subhead text-muted">{view!.strengths}</p>}
         </motion.div>
       )}
     </section>

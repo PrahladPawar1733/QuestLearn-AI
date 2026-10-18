@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import { RichText } from "@/components/math/rich-text";
 import { Button } from "@/components/ui/button";
 import { Visual } from "@/components/viz/visual";
+import { ListenButton, useT } from "@/lib/language/client";
 import type { AnswerResult } from "@/lib/services/play";
 
 /** Title row + primary action. Used inline (desktop) and as the sheet header (phone). */
@@ -38,9 +39,11 @@ export function FeedbackHeader({ result, onContinue, busy }: { result: AnswerRes
 }
 
 export function FeedbackBody({ result }: { result: AnswerResult }) {
+  const explanation = useT(result.explanation);
   return (
     <div className="space-y-4 px-5 pb-5">
-      <RichText as="p" text={result.explanation} className="t-body text-ink" />
+      <RichText as="p" text={explanation} className="t-body text-ink" />
+      <ListenButton text={explanation} />
       {result.visual && <Visual spec={result.visual} />}
       <MasteryChange m={result.mastery} />
     </div>

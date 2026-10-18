@@ -14,6 +14,7 @@
  * look the same whatever theme the rest of the app is in.
  */
 import { RichText } from "@/components/math/rich-text";
+import { LanguageSelect, ListenButton, useTranslated, useTranslatedQuestion } from "@/lib/language/client";
 import { cn } from "@/lib/cn";
 import type { GameHudProps } from "@/lib/game/module";
 import type { SpiderHud } from "./game";
@@ -24,7 +25,16 @@ const MUTED = "#93a0b9";
 const LINE = "#293245";
 
 export function SpiderClimbHud({ hud, onChoose, onContinue }: GameHudProps<SpiderHud>) {
-  const q = hud.question;
+  // Learning content follows the EN / हिन्दी switch; translations are cached, so this is instant after the first time.
+  const { q } = useTranslatedQuestion(hud.question);
+  const { texts: tx } = useTranslated([
+    hud.miss?.feedback ?? "",
+    hud.miss?.hint ?? "",
+    hud.reveal?.correctText ?? "",
+    hud.reveal?.explanation ?? "",
+    hud.banner?.text ?? "",
+    hud.conceptTitle,
+  ]);
 
   return (
     <div
@@ -48,6 +58,7 @@ export function SpiderClimbHud({ hud, onChoose, onContinue }: GameHudProps<Spide
             </h1>
           </div>
           <div className="flex gap-3 text-right sm:gap-6">
+            <LanguageSelect dark className="self-center" />
             <Stat label="Health" value={"●".repeat(hud.hearts) || "—"} tone={hud.hearts <= 1 ? "warn" : "normal"} />
             <Stat label="Score" value={hud.score.toLocaleString()} />
             <Stat label="Streak" value={String(hud.streak)} />
@@ -72,7 +83,7 @@ export function SpiderClimbHud({ hud, onChoose, onContinue }: GameHudProps<Spide
                 <strong className="mr-2.5" style={{ color: hud.banner.color }}>
                   {hud.banner.title}
                 </strong>
-                <RichText text={hud.banner.text} />
+                <RichText text={tx[4] || hud.banner.text} />
               </div>
             </div>
           )}
@@ -98,12 +109,12 @@ export function SpiderClimbHud({ hud, onChoose, onContinue }: GameHudProps<Spide
               </span>
               {hud.reveal.correctText && (
                 <p className="mb-1 mt-3 text-[16px] font-bold" style={{ color: PAPER }}>
-                  <RichText text={hud.reveal.correctText} />
+                  <RichText text={tx[2] || hud.reveal.correctText} />
                 </p>
               )}
               {hud.reveal.explanation && (
                 <p className="my-2.5 max-w-[760px] text-[14px] leading-[1.6]" style={{ color: "#b2bfd3" }}>
-                  <RichText text={hud.reveal.explanation} />
+                  <RichText text={tx[3] || hud.reveal.explanation} />
                 </p>
               )}
               <button
@@ -126,7 +137,7 @@ export function SpiderClimbHud({ hud, onChoose, onContinue }: GameHudProps<Spide
                 </p>
               )}
               <p className="my-2.5 max-w-[760px] text-[14px] leading-[1.6]" style={{ color: "#b2bfd3" }}>
-                <RichText text={hud.miss?.feedback ?? "That anchor will not hold. Rule it out and look again."} />
+                <RichText text={tx[0] || "That anchor will not hold. Rule it out and look again."} />
               </p>
               {hud.miss?.hint && (
                 <p
@@ -134,7 +145,7 @@ export function SpiderClimbHud({ hud, onChoose, onContinue }: GameHudProps<Spide
                   style={{ background: "#1b2538", border: `1px solid ${LINE}`, color: "#cfe0ff" }}
                 >
                   <strong style={{ color: MINT }}>Hint · </strong>
-                  <RichText text={hud.miss.hint} />
+                  <RichText text={tx[1] || hud.miss.hint} />
                 </p>
               )}
               <button
@@ -149,11 +160,12 @@ export function SpiderClimbHud({ hud, onChoose, onContinue }: GameHudProps<Spide
           ) : q ? (
             <>
               <span className="block text-[10px] font-extrabold uppercase tracking-[2.3px]" style={{ color: MINT }}>
-                {hud.conceptTitle}
+                {tx[5] || hud.conceptTitle}
               </span>
-              <h2 className="my-3 mb-5 text-[18px] font-bold leading-[1.4] sm:text-[23px]">
+              <h2 className="my-3 mb-3 text-[18px] font-bold leading-[1.4] sm:text-[23px]">
                 <RichText text={q.text} />
               </h2>
+              <ListenButton dark key={q.id} className="mb-4" label="Read aloud" text={`${q.text} ${q.options.map((o) => `${o.id}: ${o.text}.`).join(" ")}`} />
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                 {q.options.map((o, i) => {
                   const out = hud.tried.includes(i);

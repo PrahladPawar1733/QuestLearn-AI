@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { BottomSheet, SHEET_PEEK_RESERVE } from "@/components/ui/sheet";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { api, ApiError } from "@/lib/api-client";
+import { useTranslatedQuestion } from "@/lib/language/client";
 import { cn } from "@/lib/cn";
 import { haptic } from "@/lib/haptics";
 import { fade, spring } from "@/lib/motion";
@@ -47,7 +48,7 @@ export function QuestPlayer({ initial, videoEnabled }: { initial: SessionView; v
   const panelRef = useRef<HTMLDivElement>(null);
   const pauseRef = useRef<HTMLButtonElement>(null);
 
-  const q = view.current;
+  const { q, hint: shownHint } = useTranslatedQuestion(view.current, hint);
   // A real-time game has its own player, so reaching this component with one
   // means a stale link; fall back to the focused world rather than crashing.
   const World = WORLD_COMPONENTS[view.session.world as SkinWorld] ?? WORLD_COMPONENTS.classic;
@@ -270,7 +271,7 @@ export function QuestPlayer({ initial, videoEnabled }: { initial: SessionView; v
               transition={reduced ? fade : spring.default}
               className="surface space-y-5 rounded-[24px] p-5 sm:p-7"
             >
-              <QuestionCard q={q} hint={hint} settled={settled} />
+              <QuestionCard q={q} hint={shownHint} settled={settled} />
               <World
                 question={q}
                 phase={phase}

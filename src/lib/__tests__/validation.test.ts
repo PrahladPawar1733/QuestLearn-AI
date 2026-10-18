@@ -149,3 +149,25 @@ describe("subject and grade detected from notes", () => {
     expect(normalizeGrade("")).toBe("");
   });
 });
+
+describe("read-aloud text", () => {
+  it("turns LaTeX and Markdown into words a voice can say", async () => {
+    const { speakable } = await import("../language/speakable");
+    expect(speakable("Use $p = mv$.")).toBe("Use p equals mv.");
+    expect(speakable("$KE = \\frac{1}{2}mv^2$")).toBe("KE equals 1 over 2 mv squared");
+    expect(speakable("**Step 1:** $\\Delta U = q + w$")).toBe("Step 1: change in U equals q plus w");
+    expect(speakable("[diagram: two carts]")).toBe("");
+  });
+});
+
+describe("text-to-speech chunking", () => {
+  it("keeps every piece under the 5,000-byte API limit, even in Indian scripts", async () => {
+    const { chunkByBytes } = await import("../services/language");
+    const hindi = "संवेग द्रव्यमान और वेग का गुणनफल है। ".repeat(200); // ~3 bytes per character
+    const parts = chunkByBytes(hindi, 4500);
+    expect(parts.length).toBeGreaterThan(1);
+    for (const p of parts) expect(Buffer.byteLength(p, "utf8")).toBeLessThanOrEqual(4500);
+    expect(parts.join(" ").replace(/\s+/g, " ").trim()).toBe(hindi.replace(/\s+/g, " ").trim());
+    expect(chunkByBytes("Short text.", 4500)).toEqual(["Short text."]);
+  });
+});

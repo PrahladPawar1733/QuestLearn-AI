@@ -13,7 +13,8 @@ export type CollectionName =
   | "attempts"
   | "mastery"
   | "assets"
-  | "audit";
+  | "audit"
+  | "translations";
 
 export type Where = Record<string, string | number | boolean>;
 

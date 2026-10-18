@@ -12,6 +12,8 @@ const LIMITS = {
   tutor: { max: 60, windowMs: 10 * 60_000 },
   followup: { max: 60, windowMs: 10 * 60_000 },
   video: { max: 3, windowMs: 60 * 60_000 },
+  translate: { max: 300, windowMs: 10 * 60_000 },
+  tts: { max: 120, windowMs: 10 * 60_000 },
 } as const;
 
 const hits = new Map<string, number[]>();

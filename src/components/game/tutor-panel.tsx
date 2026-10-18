@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { OriginBadge } from "@/components/ui/origin-badge";
 import { Visual } from "@/components/viz/visual";
 import { api, type ApiError } from "@/lib/api-client";
+import { ListenButton, T, useT, useTranslated } from "@/lib/language/client";
 import type { ExplainResult } from "@/lib/services/tutor";
 
 export interface TutorActions {
@@ -20,21 +21,22 @@ export interface TutorActions {
 
 /** Title + the two choices. Stays visible even when the sheet is pulled down to "peek". */
 export function TutorHeader({ data, actions }: { data: ExplainResult | null; loading?: boolean; actions: TutorActions }) {
+  const concept = useT(data ? data.tutor.conceptTitle : "Here's what to look at.");
   return (
     <div className="px-5 pb-4 pt-1">
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <h2 id="tutor-heading" className="t-title3 text-ink">
-            Not quite
+            <T>Not quite</T>
           </h2>
-          <p className="truncate t-footnote text-muted">{data ? data.tutor.conceptTitle : "Here's what to look at."}</p>
+          <p className="truncate t-footnote text-muted">{concept}</p>
         </div>
         {data && !data.pending && <OriginBadge origin={data.origin} className="mt-1 shrink-0" />}
       </div>
       <div className="mt-3 flex gap-2">
         {actions.canFollowUp && (
           <Button className="min-w-0 flex-1 sm:flex-none" onClick={actions.onTrySimilar} disabled={actions.busy !== null}>
-            {actions.busy === "followup" ? <Loader2 className="animate-spin" /> : null} Try a similar question
+            {actions.busy === "followup" ? <Loader2 className="animate-spin" /> : null} <T>Try a similar question</T>
           </Button>
         )}
         <Button variant="secondary" className="shrink-0 sm:flex-none" onClick={actions.onContinue} disabled={actions.busy !== null}>
@@ -48,6 +50,41 @@ export function TutorHeader({ data, actions }: { data: ExplainResult | null; loa
       {actions.followUpError && <p className="mt-2 t-footnote text-amber">{actions.followUpError}</p>}
     </div>
   );
+}
+
+/** Every translatable string in a lesson, in a fixed order (see `localizeExplain`). */
+function explainTexts(d: ExplainResult): string[] {
+  const t = d.tutor;
+  return [
+    t.conceptTitle,
+    t.whyWrong,
+    t.simpleExplanation,
+    t.misconception.label.replace(/-/g, " "),
+    d.selectedOption.text,
+    d.correctOption.text,
+    t.uncertainty ?? "",
+    ...t.steps.flatMap((s) => [s.title ?? "", s.body]),
+    ...t.keyEquations.map((k) => k.meaning),
+  ];
+}
+function localizeExplain(d: ExplainResult, tr: string[]): ExplainResult {
+  const t = d.tutor;
+  let i = 7;
+  return {
+    ...d,
+    selectedOption: { ...d.selectedOption, text: tr[4] },
+    correctOption: { ...d.correctOption, text: tr[5] },
+    tutor: {
+      ...t,
+      conceptTitle: tr[0],
+      whyWrong: tr[1],
+      simpleExplanation: tr[2],
+      misconception: { ...t.misconception, label: t.misconception.label === "unclassified" ? "unclassified" : tr[3] },
+      uncertainty: t.uncertainty ? tr[6] : t.uncertainty,
+      steps: t.steps.map((s) => ({ ...s, title: s.title ? tr[i++] : (i++, s.title), body: tr[i++] })),
+      keyEquations: t.keyEquations.map((k) => ({ ...k, meaning: tr[i++] })),
+    },
+  };
 }
 
 /** The lesson itself: short sections, one idea each, steps revealed one at a time. */
@@ -67,6 +104,7 @@ export function TutorBody({
   conceptId: string;
 }) {
   const [stepsShown, setStepsShown] = useState(1);
+  const { texts: tr } = useTranslated(data ? explainTexts(data) : []);
 
   if (loading && !data) {
     return (
@@ -95,24 +133,27 @@ export function TutorBody({
     );
   }
   if (!data) return null;
-  const t = data.tutor;
+  const d = localizeExplain(data, tr);
+  const t = d.tutor;
 
   return (
-    <motion.div key={data.pending ? "stored" : "full"} initial={{ opacity: 0.4 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }} className="space-y-6 px-5 pb-6">
-      {data.pending && (
+    <motion.div key={d.pending ? "stored" : "full"} initial={{ opacity: 0.4 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }} className="space-y-6 px-5 pb-6">
+      {d.pending && (
         <p className="flex items-center gap-2 t-footnote text-muted" aria-live="polite">
           <Loader2 className="size-3.5 animate-spin" /> Writing a fuller explanation for your answer…
         </p>
       )}
-      {data.fallbackReason && <p className="t-footnote text-amber">{data.fallbackReason}</p>}
+      {d.fallbackReason && <p className="t-footnote text-amber">{d.fallbackReason}</p>}
       {t.simplified && (
         <p className="t-subhead font-medium text-ink">Here&apos;s a simpler way to see it.</p>
       )}
 
+      <ListenButton text={[t.whyWrong, t.simpleExplanation, ...t.steps.map((x) => x.body)].join(" ")} label="Listen to this lesson" />
+
       {/* Your answer vs. the right one */}
       <dl className="grid gap-2.5 sm:grid-cols-2">
-        <AnswerTile tone="wrong" label="You chose" id={data.selectedOption.id} text={data.selectedOption.text} />
-        <AnswerTile tone="right" label="Correct" id={data.correctOption.id} text={data.correctOption.text} />
+        <AnswerTile tone="wrong" label="You chose" id={d.selectedOption.id} text={d.selectedOption.text} />
+        <AnswerTile tone="right" label="Correct" id={d.correctOption.id} text={d.correctOption.text} />
       </dl>
 
       <Section title="Why it's tempting">
@@ -178,7 +219,9 @@ export function TutorBody({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
-      <h3 className="mb-1.5 t-eyebrow text-tint">{title}</h3>
+      <h3 className="mb-1.5 t-eyebrow text-tint">
+        <T>{title}</T>
+      </h3>
       {children}
     </section>
   );
@@ -188,7 +231,9 @@ function AnswerTile({ tone, label, id, text }: { tone: "wrong" | "right"; label:
   const right = tone === "right";
   return (
     <div className={right ? "rounded-2xl bg-success-fill/8 p-3.5 ring-1 ring-success-fill/25" : "rounded-2xl bg-danger-fill/7 p-3.5 ring-1 ring-danger-fill/20"}>
-      <dt className={`t-footnote font-semibold ${right ? "text-success" : "text-danger"}`}>{label}</dt>
+      <dt className={`t-footnote font-semibold ${right ? "text-success" : "text-danger"}`}>
+        <T>{label}</T>
+      </dt>
       <dd className="mt-0.5 t-callout text-ink">
         <span className="mr-1.5 font-bold">{id}.</span>
         <RichText text={text} />

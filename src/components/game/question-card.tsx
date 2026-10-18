@@ -5,6 +5,7 @@ import { RichText } from "@/components/math/rich-text";
 import { Badge } from "@/components/ui/badge";
 import { OriginBadge } from "@/components/ui/origin-badge";
 import { Visual } from "@/components/viz/visual";
+import { LanguageSelect, ListenButton, useLang } from "@/lib/language/client";
 import type { PublicQuestion } from "@/lib/types";
 
 const DIFF: Record<string, { label: string; tone: "success" | "cyan" | "danger" }> = {
@@ -14,6 +15,8 @@ const DIFF: Record<string, { label: string; tone: "success" | "cyan" | "danger" 
 };
 
 export function QuestionCard({ q, hint, settled }: { q: PublicQuestion; hint?: string; settled: boolean }) {
+  const lang = useLang();
+  const option = lang === "en" ? "Option " : "";
   return (
     <section aria-labelledby="question-text" className="space-y-4">
       <div className="flex flex-wrap items-center gap-1.5">
@@ -24,6 +27,12 @@ export function QuestionCard({ q, hint, settled }: { q: PublicQuestion; hint?: s
       <h2 id="question-text" className="t-title3 text-ink sm:t-title2">
         <RichText text={q.text} />
       </h2>
+      {!settled && (
+        <div className="flex flex-wrap items-center gap-2">
+          <ListenButton key={q.id} text={`${q.text} ${q.options.map((o) => `${option}${o.id}: ${o.text}.`).join(" ")}`} label="Read aloud" />
+          <LanguageSelect />
+        </div>
+      )}
       {q.visual && !settled && <Visual spec={q.visual} mode="before" />}
       <AnimatePresence initial={false}>
         {hint && (

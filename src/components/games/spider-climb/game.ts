@@ -217,7 +217,8 @@ export class SpiderClimbGame implements LearningGame<SpiderHud> {
     // (the engine's game-over panel isn't part of this HUD, so a run that died just stopped).
     // Two misses already reveal the answer, so a full set can never reach zero.
     this.queued = -1;
-    this.engine.setState({ phase: this.engine.h.mode === "edge" ? "question" : this.engine.state.phase, tried: [], selected: -1, hearts: 3 });
+    // A new question hides the previous answer straight away, so it can't give anything away.
+    this.engine.setState({ phase: this.engine.h.mode === "edge" ? "question" : this.engine.state.phase, tried: [], selected: -1, hearts: 3, banner: null });
   }
 
   /** The student webbed onto an anchor. Ask the host to score it. */
@@ -269,6 +270,14 @@ export class SpiderClimbGame implements LearningGame<SpiderHud> {
     }
     if (correct) {
       this.answered++;
+      // Show the right answer for the whole swing (the engine only posts its banner on landing).
+      const right = q?.options.find((o) => o.id === correctOptionId);
+      this.question = null; // first, so the banner below shows immediately
+      if (right) {
+        this.engine.setState({
+          banner: { color: "#2fb56b", title: "CORRECT", text: this.pendingExplain ? `${right.text} — ${this.pendingExplain}` : right.text, t: Date.now() } as SpiderHud["banner"],
+        });
+      }
       this.question = null;
     }
     this.engine.resolveChoice(correct);
@@ -367,7 +376,8 @@ export class SpiderClimbGame implements LearningGame<SpiderHud> {
     h.bestStreak = s.bestStreak;
     h.firstTry = s.firstTry;
     h.answered = this.answered;
-    h.banner = s.banner;
+    // The answer banner belongs to the swing: hidden the moment a new question is open.
+    h.banner = this.question ? null : s.banner;
     h.miss = this.miss;
     h.reveal = this.reveal;
     h.awaitingRetry = s.phase === "feedback" && !s.feedback?.dead;

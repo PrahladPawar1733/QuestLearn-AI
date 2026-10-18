@@ -1,240 +1,289 @@
 # QuestLearn AI
 
-**Upload. Play. Understand. Master.**
+**An AI tutor that turns your own notes into a game that teaches you.** Photograph a handwritten chapter or upload a PDF. QuestLearn AI reads it, writes questions from it, checks every answer key, and lets you play the chapter as a game. When you get something wrong, it explains the specific mistake you made, in your language, and can read the explanation aloud.
 
-QuestLearn AI turns a student's own study material (photos of handwritten notes or a chapter PDF) into a playable learning quest. Gemini on Vertex AI reads the material, extracts concepts and writes questions. Application code validates every answer key before a student sees it. When a student slips, a tutor explains the misconception, shows a worked solution and a physics diagram, then serves a follow-up question on the same concept in a new context. Mastery updates from real performance.
+**Live:** https://questlearn-ai-git-ompbxof3ra-as.a.run.app
 
-```
-Study material → concept extraction → personalized quest → answer check (app code)
-   → misconception diagnosis → targeted teaching → follow-up question → mastery update
-```
-
-## Multiple game worlds
-
-Like the Arivihan games project this was modelled on, every quest can be played in several worlds. All worlds are skins over one question engine with one scoring rule; a world never decides correctness.
-
-| World | One question builds… |
-|---|---|
-| 🎯 Quest Arena | one checkpoint (focused card layout) |
-| 🎈 Balloon Pop | one balloon; the right one floats up, a wrong pick pops |
-| 🚀 Rocket Launch | one rocket stage; ignition on the last correct answer |
-| 🧭 Maze Escape | one gate; the explorer advances on a correct answer |
-| 🫧 Bubble Lab | one bubble; a beaker fills as you go |
-| 🏰 Castle Defense | one wave; correct answers fire the cannon, mistakes raise a shield |
-
-Answer options are always also rendered as an accessible radio group (keyboard: A–D or 1–4, Enter to submit).
+Built on **Gemini on Vertex AI**, **Cloud Run**, **Cloud Storage**, **Cloud Text-to-Speech**, **Cloud Translation** and **Firestore**.
 
 ---
 
-## Design
+## 1. The problem
 
-The interface follows Apple's design approach, translated for the web (see [docs/design-system.md](docs/design-system.md)):
+Students revise mostly from their own material: class notes, handwritten summaries, the chapter PDF their teacher shared. That material is passive. It can't test them, and it can't tell them why they keep getting something wrong.
 
-- **System typography** (SF Pro on Apple devices) with per-size tracking and leading; game numbers in SF Rounded.
-- **Semantic system colors** that switch between light and dark with the OS, indigo as the single accent.
-- **Translucent materials** for the nav bar, status bar, sheets and dialogs, with scroll-edge fades instead of dividers.
-- **Springs everywhere**: critically damped by default; a little bounce only after a flick.
-- **Instant press feedback**, and motion that enters and leaves along the same path; dialogs grow from the button that opened them.
-- **A real gesture on phones**: the feedback and lesson panels are a draggable bottom sheet (peek / medium / large) with 1:1 tracking, momentum projection, rubber-banding and velocity hand-off, so students can pull it down to watch their game world react.
-- **Accessibility**: honors reduced motion (cross-fades), reduced transparency (solid surfaces) and increased contrast.
+- **Practice questions are generic.** Question banks and quiz apps don't match what *this* class covered or how *this* teacher explained it.
+- **Feedback stops at "wrong".** A red cross doesn't show the misconception behind the answer, so the same mistake comes back in the exam.
+- **AI chatbots aren't reliable tutors.** They can produce a quiz from notes, but nothing checks the answer keys, and a wrong key teaches the wrong thing with confidence.
+- **Revision is a chore.** Re-reading notes is the least effective and least engaging way to study.
+- **Language and access.** Many students in India learn best in Hindi, Tamil, Bengali or another home language, and some learn better by listening than reading.
 
-## Quick start
+**The challenge:** turn the content students already have into a personalised, engaging and *trustworthy* learning experience, in their own language.
 
-Requirements: Node.js 22+, npm.
+## 2. The solution
+
+QuestLearn AI turns a chapter into a **quest**: a checked, adaptive set of questions you can play as a game.
+
+| Step | What the student sees | What the AI does |
+|---|---|---|
+| **1. Upload** | Photograph notes or add a PDF. Subject, grade and title are detected automatically. | Gemini reads handwriting, equations and diagrams, then pulls out the chapter's concepts, formulas, definitions and examples, with page references. |
+| **2. Play** | Choose **Spider Climb** (each answer picks a web anchor), **Force Rush** (each answer opens an obstacle) or **Focus** (plain questions). | Questions are written from *your* notes, and every answer key is checked twice: by code and by an independent AI solver. |
+| **3. Learn from mistakes** | A wrong answer opens a short lesson about *the option you picked*, then "Try a similar question" gives a fresh one on the same idea. | Gemini explains why that option was tempting, works through a different example, and writes a checked follow-up question. |
+| **4. Know what to do next** | An end-of-run **report**: which concepts to learn, what went wrong, and concrete next steps citing pages in your notes. | Built only from your real wrong answers; nothing is invented. |
+| **In any language** | Switch to हिन्दी, বাংলা, தமிழ், తెలుగు, मराठी, ગુજરાતી, ಕನ್ನಡ, മലയാളം, ਪੰਜਾਬੀ, Español, Français or العربية, and press **Read aloud**. | Cloud Translation and Cloud Text-to-Speech, run on demand and cached, so they add no time to building a quest. |
+
+### What makes it different
+
+- **Your material, not a generic bank.** Every question is grounded in the uploaded notes and cites the page it came from.
+- **Checked AI, not trusted AI.**
+  - Numerical answers are recalculated by code, with unit checks.
+  - Physics answers are tested against conservation laws.
+  - A second, independent Gemini call answers each question *without* the key, and if it disagrees, the question is dropped.
+  - Every item is labelled with where it came from: *Sample*, *Generated from a template*, or *AI-written, checked*.
+- **Personalised at the level of the mistake.** Lessons target the specific wrong option you picked, and difficulty adapts: two right in a row steps up, and repeated misses slow down and simplify.
+- **Learning through play.** The same checked questions drive a real game, so revision feels like play rather than re-reading.
+- **Built for India.** Nine Indian languages plus English, Spanish, French and Arabic, with read-aloud for accessibility.
+
+### Suggested directions covered
+**Personalized learning** (adaptive difficulty, targeted lessons, follow-ups, mastery), **content creation** (notes → questions, lessons, reports), **interactive experiences** (game modes) and **multilingual, audio experiences** (Translation and Text-to-Speech).
+
+---
+
+## 3. How AI makes the difference
+
+AI isn't a feature added on top of QuestLearn; it does the work that makes it possible. Without it you'd need a teacher to read each student's notes, write questions about them, check the answer keys, diagnose every wrong answer and translate the lesson. With Gemini that takes about a minute per chapter, and every student gets it.
+
+### What the AI does, and why it couldn't be done with rules
+
+| AI capability | What Gemini does | Why rules, templates or plain OCR can't | Safeguard |
+|---|---|---|---|
+| **Reading messy notes** (multimodal) | Transcribes handwriting, printed text, equations (as LaTeX) and diagrams from photos and PDFs | OCR breaks on handwriting, equations and diagrams; it has no idea what a crossed-out line or a free-body diagram means | Marks unreadable parts `[illegible]` instead of guessing; rejects uploads that aren't study material or can't be read |
+| **Understanding the chapter** | Builds a concept map with formulas, definitions, examples and page references; detects the subject, grade and title | Each chapter, teacher and handwriting style is different; no fixed parser can find "the ideas" in it | Separates concepts *found in your notes* from background it added; lists anything uncertain |
+| **Writing good questions** | Writes conceptual, application, numerical and reasoning questions. Each wrong option is a *named misconception* with feedback. | Templates exist for only a few topics and can't write a question about *your* chapter; real distractors need to understand how students go wrong | Maths recalculated by code with units; physics invariants checked; duplicates removed; an independent solver must agree with the key |
+| **Checking the AI with AI** | A second Gemini call answers every question *without seeing the key* | Only something that can solve the question can catch a wrong key in an arbitrary subject | If it disagrees, or finds the question ambiguous or factually wrong, the question is dropped |
+| **Diagnosing your mistake** | Explains why the option *you* picked was tempting, then teaches the idea with a fresh worked example | A stored explanation explains the right answer, not *your* wrong one; it can't adapt when you keep missing the same idea | The correct answer is fixed before the model sees it, so it can't change the key; after repeated misses it switches to simpler language and an everyday analogy |
+| **Re-testing the idea** | Writes a follow-up question on the same concept in a new context, with a distractor aimed at the same misconception | Re-asking the same question tests memory, not understanding | Same code checks and independent solver as every other question; template generators take over if AI fails |
+| **Coaching** | An end-of-run report: the pattern behind your mistakes, the idea to learn, and next steps citing pages of your notes | Spotting the *pattern* across several different wrong answers takes understanding, not counting | Uses only your real wrong answers; concepts the model invents are discarded |
+| **Your language, read aloud** | Cloud Translation and Cloud Text-to-Speech (Google's AI) in 13 languages, including 9 Indian ones | Hand-translating every generated question and lesson isn't possible | Maths is protected from translation and turned into words for speech; English never calls the API |
+
+### Before and after
+
+| | Revising from notes today | With QuestLearn AI |
+|---|---|---|
+| Practice | Generic question banks, or none for *your* notes | Questions written from your own chapter, with page references |
+| Feedback | "Wrong. The answer is B." | Why *your* choice was tempting, the idea behind it, a worked example, and a fresh question to prove it's fixed |
+| Difficulty | Same for everyone | Adapts to you, question by question |
+| Next step | Re-read everything | A report naming the concepts to learn and what to do |
+| Language | Mostly English | 13 languages, read aloud |
+| Trust | AI quizzes with unchecked keys | Every key checked by code and by an independent AI; every item labelled with where it came from |
+
+### Responsible AI
+- **Never trusted blindly:** every AI-written question passes deterministic checks and an independent AI solver before a student sees it. Failures are dropped and counted, never shown.
+- **Honest labels:** each question, lesson and report says whether it's *Sample*, *Generated from a template* or *AI-written, checked*. Nothing mocked is presented as AI output.
+- **No invented content:**
+  - Unreadable notes get a request for a clearer photo.
+  - Lessons say when your notes don't support a confident answer.
+  - The report only uses mistakes you actually made.
+- **Fails safely:** if Gemini is slow or unavailable, the stored explanation, template follow-ups or a clear retry message take over, so the student isn't left stuck.
+- **Age-appropriate and private:**
+  - Prompts are written for students aged 14–18.
+  - Students are anonymous guests, uploads are private, and they can delete their data.
+  - Every AI call is logged with its outcome for review.
+
+### AI as an engineered system
+
+Each step uses the setting that fits its job: minimal thinking where speed matters and the facts are already fixed, full reasoning where correctness depends on it.
+
+| Step | Model | Thinking | Typical time | Cached |
+|---|---|---|---|---|
+| Read notes (3-page batches in parallel) | Gemini 3.5 Flash | minimal | ~10 s | per upload |
+| Extract concepts + subject/grade | Gemini 3.5 Flash | default | ~20 s | per upload |
+| Write questions (batches of 4 in parallel) | Gemini 3.5 Flash | minimal | ~30 s with checks | per quest |
+| Independent answer check | Gemini 3.5 Flash | default | ~10 s per batch | per quest |
+| Lesson for a wrong answer | Gemini 3.5 Flash | minimal | ~5 s (stored lesson shows instantly) | per attempt |
+| Follow-up question | Gemini 3.5 Flash | default | ~20–30 s | per mistake |
+| End-of-run report | Gemini 3.5 Flash | minimal | ~5 s | per run |
+| Translation / read aloud | Cloud Translation / Text-to-Speech | — | ~0.6 s / ~0.4 s (instant when cached) | per text |
+
+Every call returns structured JSON checked against a schema. A slow request gets an automatic backup, and failures come back as clear messages. That work took a 3-photo chapter with 10 questions from about **6 minutes to about 1 minute**.
+
+---
+
+## 4. Architecture
+
+```mermaid
+flowchart LR
+  subgraph Browser
+    UI["Next.js pages (React)<br/>Focus · Spider Climb · Force Rush"]
+  end
+  subgraph CR["Cloud Run · questlearn-ai-git (asia-southeast1)"]
+    API["Next.js 16 server<br/>pages + /api routes<br/>runs as service account questlearn-run"]
+  end
+  UI <--> API
+  API --> GEM["Gemini 3.5 Flash<br/>on Vertex AI"]
+  API --> FS[("Firestore<br/>ql_* collections")]
+  API --> GCS[("Cloud Storage<br/>private uploads + audio cache")]
+  API --> TR["Cloud Translation"]
+  API --> TTS["Cloud Text-to-Speech"]
+  GH["GitHub · main"] -->|push| CB["Cloud Build"] -->|image| AR["Artifact Registry"] -->|deploy| CR
+```
+
+QuestLearn is **one Next.js 16 application** that serves both the pages and the API. There's no separate backend service.
+
+### From notes to a quest (`src/lib/services/materials.ts`)
+
+```mermaid
+flowchart LR
+  U["Upload<br/>PDF / photos"] --> R["Read<br/>3-page batches in parallel"]
+  R --> C["Concepts<br/>+ subject, grade, title"]
+  C --> Q["Write questions<br/>batches of 4 in parallel"]
+  Q --> V{"Code checks<br/>maths · units · physics · duplicates"}
+  V -->|pass| X{"Independent AI solver<br/>agrees with the key?"}
+  V -->|fail| D["Dropped"]
+  X -->|yes| OK["Quest ready"]
+  X -->|no| D
+```
+
+| Stage | What happens | Typical time |
+|---|---|---|
+| Upload | File types checked from their actual bytes; size, page and dimension limits enforced; images oriented and resized; saved to a private bucket | 1–3 s |
+| Read | Long PDFs split into 3-page pieces, images grouped 3 at a time, all transcribed in parallel by Gemini at minimal thinking | ~10 s |
+| Concepts | Chapter outline with page references; the subject, grade and title are detected | ~20 s |
+| Questions | Written in parallel batches of 4, each batch checked by code and by the independent solver as soon as it's done | ~30 s |
+
+Each stage saves a checkpoint, so **Retry** resumes where it stopped and never creates a duplicate quest. The create screen shows live progress, for example "2 of 4 batches checked".
+
+### Playing and learning (`src/lib/services/play.ts`, `tutor.ts`, `report.ts`)
+- **Marking on the server:** the browser never receives the answer key before you answer, and each question can be answered once per run.
+- **Adaptive difficulty:** the next question gets harder after two correct answers in a row, and easier after repeated misses.
+- **Mastery:** each concept has a transparent score that weights recent results and counts a fixed mistake extra. One lucky answer is never "mastered".
+- **Lessons:** the stored explanation appears instantly; the AI lesson aimed at your exact answer replaces it a few seconds later. Both are cached per attempt.
+- **Follow-up questions** go through the same code checks and independent solver. If AI is unavailable, deterministic template generators take over.
+- **End-of-run report:** built from the run's real wrong answers, misconception labels and notes excerpts, and cached per run.
+
+### How Gemini is called (`src/lib/ai/client.ts`)
+Every model call goes through one function, `generateJson`, which:
+- **Asks for JSON and validates it** against a zod schema, with one automatic correction attempt. Vertex's built-in schema enforcement isn't used: in testing it randomly stalled about a third of requests.
+- **Sends a backup request** if a call runs well past its normal time, and uses whichever answers first.
+- **Retries temporary errors** and turns provider failures into clear messages (busy, quota used up, billing disabled).
+- **Logs every call** (step, model, duration, outcome) to Firestore `ql_audit`.
+
+Latency was cut from about 6 minutes to about 1 minute for a 3-photo chapter with 10 questions, mainly by removing the stalling schema mode, running batches in parallel, using minimal thinking where reasoning adds nothing, and adding the backup requests.
+
+### Languages and audio (`src/lib/services/language.ts`, `src/lib/language/*`)
+- **Translation on demand:** text is translated when it's shown, with maths protected, batched into one request per screen and cached per text in Firestore. In testing that took ~0.6–1.4 s the first time and ~60 ms after; English makes no call.
+- **Text-to-Speech:** maths is turned into words first ("½mv²" becomes "1 over 2 m v squared"). For each language the server picks the fastest good voice (Neural2, then Wavenet, then Standard), and audio is cached in Cloud Storage. Measured at about 0.4 s per passage.
+
+### Data
+- **Firestore** (`ql_*` collections):
+  - **Content:** `materials`, `concepts`, `questions`, `quests`.
+  - **Play:** `sessions`, `attempts`, `mastery`.
+  - **Other:** `users`, `assets` (cached lessons and reports), `translations`, `audit`.
+- **Cloud Storage:** `users/{uid}/materials/{id}/…` for uploads and `cache/tts/…` for audio. The bucket is private and deletes files after 180 days.
+- **Identity:** an anonymous guest ID in an httpOnly cookie. No name or email is collected, and students can delete their own data.
+
+### Google Cloud technologies
+
+| Technology | Used for |
+|---|---|
+| **Gemini on Vertex AI** (`gemini-3.5-flash`) | Reading notes, concept extraction, question writing, independent answer checking, lessons, follow-ups, reports |
+| **Cloud Run** | Hosting the app (pages + API) |
+| **Cloud Storage** | Private uploads, cached audio |
+| **Cloud Text-to-Speech** | Read aloud in 13 languages |
+| **Cloud Translation** | Questions, lessons and reports in 13 languages |
+| **Firestore** | All records, translation cache, AI audit log |
+| **Cloud Build + Artifact Registry** | Continuous deployment from GitHub |
+
+### Tech stack
+Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, Motion, KaTeX (maths), Recharts, zod, `@google/genai`, `sharp` and `pdf-lib` (file handling), Vitest.
+
+---
+
+## 5. Run it locally
+
+Requirements: Node.js 22+ and npm.
 
 ```bash
 npm install
 npm run dev          # http://localhost:3000
 ```
 
-With no environment variables the app runs in **demo mode**:
+**Without any settings it runs in demo mode:**
+- **Sample chapter:** the Physics · Collisions quest is fully playable.
+- **Lessons and follow-ups:** use prepared, hand-checked content and template-generated questions.
+- **Uploads:** stored locally; analysis explains that AI isn't configured.
+- **Labels:** nothing mocked is presented as AI output.
 
-- The prepared **Physics · Collisions** quest (6 concepts, 14 hand-checked questions, 10 per run) is fully playable.
-- Wrong answers open a **prepared lesson**; "Try a similar question" uses **deterministic template generators** (new numbers and context, validated by the same checks).
-- Uploads are validated and stored locally, but analysis returns a clear "AI isn't configured" message with a link to the demo.
-- Every piece of content is labelled with its origin: *Prepared demo content*, *Template-generated*, or *AI-generated · validated*. Nothing mocked is presented as model output.
-
-Production build:
-
-```bash
-npm run build && npm start
-```
-
-## Environment variables
-
-See [.env.example](.env.example). The important ones:
+To use Google Cloud, create `.env.local`; see [.env.example](.env.example).
 
 | Variable | Purpose |
 |---|---|
 | `GOOGLE_GENAI_USE_VERTEXAI=true` | Use Gemini on Vertex AI |
-| `GOOGLE_CLOUD_PROJECT` / `GOOGLE_CLOUD_LOCATION` | Vertex AI project and location (default `us`; the `global` endpoint returned 404 in testing) |
-| `GEMINI_MODEL` | Default `gemini-3.5-flash`. Gemini 2.5 models retire on Vertex AI on 2026-10-20. |
-| `GEMINI_API_KEY` | Alternative to Vertex AI (Gemini API) |
+| `GOOGLE_CLOUD_PROJECT` | Your project ID |
+| `GOOGLE_CLOUD_LOCATION=us` | Vertex AI location (the `global` endpoint returned 404 in testing) |
+| `GEMINI_MODEL` | Default `gemini-3.5-flash` |
 | `QL_DB=firestore` | Use Firestore instead of the local JSON store |
-| `GCS_BUCKET` | Private Cloud Storage bucket for uploads and generated assets |
-| `QL_ENABLE_VIDEO`, `VEO_MODEL` | Optional Veo teaching videos (Vertex AI + bucket required) |
-| `QL_FORCE_DEMO=true` | Force demo mode |
+| `GCS_BUCKET` | Private bucket for uploads and the audio cache |
+| `QL_AI_CONSTRAINED_JSON=true` | Optional: use Vertex's built-in schema enforcement (off by default; it stalled requests) |
+| `QL_ENABLE_VIDEO`, `VEO_MODEL` | Optional Veo video lessons |
 
-Secrets never reach the browser: all AI, storage and database access happens in route handlers. Auth uses Application Default Credentials (`gcloud auth application-default login` locally, the service account on Cloud Run).
+Locally, credentials come from `gcloud auth application-default login`; on Cloud Run, from the service account. Secrets never reach the browser.
 
-## Google Cloud setup
+**Google Cloud APIs to enable:** Vertex AI, Firestore, Cloud Storage, Cloud Run, Cloud Build, Artifact Registry, Text-to-Speech and Cloud Translation.
 
-1. Enable Vertex AI, Firestore, Cloud Storage, Cloud Run, Cloud Build and Artifact Registry.
-2. Create a Firestore database in Native mode and a **private** bucket (uniform access, public access prevention).
-3. Create a service account with `roles/aiplatform.user`, `roles/datastore.user`, `roles/storage.objectAdmin` on the bucket, and `roles/iam.serviceAccountTokenCreator` on itself (for short-lived signed URLs).
+## 6. Deploy
 
-[scripts/deploy-cloud-run.sh](scripts/deploy-cloud-run.sh) does all of this and deploys:
+**Continuous deployment (current setup).** Every push to `main` on GitHub starts a Cloud Build trigger. It builds the [Dockerfile](Dockerfile) (a Next.js standalone server on Node 22), pushes the image to Artifact Registry and updates the Cloud Run service. If a build fails, the previous version keeps serving.
 
-```bash
-PROJECT_ID=my-project REGION=asia-south1 ./scripts/deploy-cloud-run.sh
-```
-
-The [Dockerfile](Dockerfile) builds a Next.js standalone server listening on `$PORT` (8080). On Cloud Run, use `QL_DB=firestore` and `GCS_BUCKET`; the local store is for development only and is not shared between instances.
-
----
-
-## Architecture
-
-Next.js 16 (App Router, React 19, TypeScript, Tailwind v4) for both UI and backend route handlers. One deployable service.
-
-```
-src/
-  app/                      pages + /api route handlers
-  components/game/          quest player, tutor panel, 6 worlds
-  components/viz/           deterministic physics visuals (collision, bounce, momentum bars)
-  lib/
-    ai/                     Gemini client (timeouts, retries, schema repair, audit), prompts, workflows
-    validation/             unit/dimension-aware evaluator, physics invariants, question validator
-    engine/                 mastery, XP/levels/achievements, adaptive selection
-    demo/                   prepared Collisions chapter + parametric follow-up generators
-    services/               play loop, tutor, material pipeline, progress
-    db/ storage/            local JSON ⇄ Firestore, local disk ⇄ Cloud Storage
-```
-
-### AI workflow (focused, not multi-agent theatre)
-
-| Role | Implementation |
-|---|---|
-| Material Analyst | `transcribeMaterial` (multimodal: images/PDF → per-page transcript, readability) + `extractChapter` (concepts, formulas, examples, `fromNotes` vs added knowledge, uncertain parts) |
-| Question Designer | `designQuestions`: structured output with misconception-labelled distractors and a `calc` spec for numerical questions |
-| Question Validator | Deterministic checks first, then an **independent-solve review**: a second model call answers each question *without* the key; disagreement, ambiguity or factual problems reject the question. One replacement round with rejection feedback. |
-| Personalized Tutor | `tutorExplain` + `tutorFollowUp`, given the student's choice, the known misconception, prior misconceptions and a source excerpt. Never allowed to change the answer key. |
-
-The tutor uses narrowly scoped tool functions (`getSourceContent`, `getQuestion`, `getStudentAttemptHistory`, `saveLearningAsset`) with authorization in app code. The model never writes records or awards XP. Google ADK was considered and not used: the workflow is linear and latency-sensitive, so plain typed functions were simpler and easier to validate.
-
-Every model call is audited (operation, model, input ids, outcome, retries, duration) in the `audit` collection, without prompts, student text or credentials.
-
-### Deterministic validation
-
-A question reaches a student only if all of these pass ([questions.ts](src/lib/validation/questions.ts)):
-
-- Schema, sequential option ids, unique option text, exactly one correct option, no "all/none of the above".
-- Distractor feedback only on wrong options; answer not leaked in the stem; no near-duplicates (Jaccard ≥ 0.8).
-- **Numerical questions**: the expression is re-evaluated by a safe evaluator with **dimensional analysis** (kg, m, s, N, J, kg·m/s, km/h, …). The answer unit must match dimensionally, the keyed option must match within tolerance, and no distractor may also match.
-- **Collision questions**: momentum conserved, kinetic energy not created, 0 ≤ e ≤ 1.
-
-### Adaptive engine
-
-- Two correct in a row (no hint) → difficulty steps up. Two misses in a row, or two misses on one concept → steps down.
-- Next question: closest to target difficulty, then weakest concept, avoiding the same concept back-to-back.
-- After a miss: the tutor opens; the follow-up is the same concept in a new scenario. Repeated struggle → simpler (analogy-first) lesson and an easier follow-up.
-- The quest screen shows **"Why this question"** and the results page shows the full adaptation timeline.
-
-### Mastery (transparent, configurable)
-
-[mastery.ts](src/lib/engine/mastery.ts):
-
-```
-mastery = (Σ wᵢ·sᵢ + 0.3·2) / (Σ wᵢ + 2)        over the last 8 results
-sᵢ = 1 correct · 0.5 correct with hint · 0 wrong
-wᵢ = 0.8^age × 1.5 (follow-up) × {0.8 easy, 1 medium, 1.25 hard}
-Mastered ≥ 85% and ≥ 4 attempts · Proficient ≥ 70% and ≥ 3 · Developing ≥ 45%
-```
-
-The prior means one correct answer can never read as mastery. This is a practice guide, not a validated psychometric score.
-
-### Gamification (server-validated)
-
-Correct +100 XP · hint −40 · streak bonus +10 per consecutive correct (cap +50) · fixed mistake +50 · quest completion +150 (+100 perfect). Levels start at 150·n·(n−1) XP. Achievements (First Quest, Five in a Row, Mistake to Mastery, Physics Explorer, Chapter Conqueror, World Hopper) are computed from stored activity. No lives: mistakes lead to teaching, not game over.
-
----
-
-## API
-
-| Method | Route | Purpose |
-|---|---|---|
-| GET | `/api/health` | Health + AI/DB/storage mode |
-| POST | `/api/materials` | Multipart upload (PDF/JPG/PNG) + quest settings |
-| GET/DELETE | `/api/materials/:id` | Processing status / delete material and all derived data |
-| POST | `/api/materials/:id/analyze` | Reading + concept extraction (resumes from checkpoints) |
-| POST | `/api/materials/:id/generate-quest` | Generate, validate, assemble (idempotent, no duplicate quests) |
-| GET | `/api/materials/:id/files/:index` | Owner-only file access (signed URL on GCS) |
-| GET | `/api/quests/:id` | Quest summary (no answer keys) |
-| POST | `/api/quests/:id/start` | Start a session (`world`, optional `practiceConceptIds`) |
-| POST | `/api/quests/:id/answer` | Score on the server; idempotent per (session, question) |
-| POST | `/api/quests/:id/hint` | Reveal a hint (recorded server-side) |
-| GET | `/api/sessions/:id` | Resume a session |
-| POST | `/api/sessions/:id/next` | Adaptive next question or completion |
-| GET | `/api/sessions/:id/results` | Results |
-| POST | `/api/concepts/:id/explain` | Targeted explanation (AI → prepared fallback) |
-| POST | `/api/concepts/:id/follow-up` | Validated follow-up (AI → template → unplayed question) |
-| POST/GET | `/api/concepts/:id/video` | Optional Veo job start / poll |
-| GET | `/api/progress` | Mastery and activity |
-| DELETE | `/api/me` | Delete all of this guest's data |
-
-Errors are `{"error": {"code", "message", "retryable"}}` with proper status codes. Stack traces and provider errors are logged, never returned. Expensive operations are rate-limited per guest.
-
-## Privacy and safety
-
-- Guest identity is an opaque random id in an httpOnly cookie. No name, email or other personal data is collected.
-- File type is detected from magic bytes; size, count, page and dimension limits are enforced; images are EXIF-oriented and resized; corrupted or password-protected PDFs are rejected with a clear message.
-- Uploads are private: owner-checked API access locally, short-lived signed URLs on GCS.
-- Students can delete one upload or all of their data.
-- Prompts require age-appropriate language, honest uncertainty, and never inventing content from unreadable notes (the pipeline asks for a clearer photo instead).
-
----
-
-## Testing
+**One-command deploy** (sets up the service account, permissions, bucket and Firestore, then deploys from source):
 
 ```bash
-npm test            # vitest: 63 tests
+PROJECT_ID=your-project ./scripts/deploy-cloud-run.sh
+```
+
+The Cloud Run service account needs these roles:
+- Vertex AI User
+- Cloud Datastore User
+- Cloud Translation User
+- Storage Object Admin on the uploads bucket
+
+The default compute service account (which runs the builds) needs:
+- Cloud Run Builder
+- Developer Connect Read Token Accessor (for GitHub deploys)
+
+## 7. Testing and quality
+
+```bash
+npm test            # Vitest: 531 tests
 npm run typecheck
 npm run lint
-npm run eval        # evaluation report → eval/results/latest.{json,md}
+npm run eval        # quality report → eval/results/latest.{json,md}
 ```
 
-The tests cover validation, units and physics invariants, every demo question, all template generators across seeds, file ingestion (valid and invalid images and PDFs), and the full learning loop. The three adaptive cases are tested explicitly: correct answers raise difficulty; wrong → lesson → follow-up correct raises mastery; repeated struggle simplifies the lesson and lowers follow-up difficulty. Idempotent answers, authorization, quest completion, results and practice sessions are covered too. With a mocked Gemini client, the tests also check that wrong keys, unit errors and reviewer disagreement are rejected, that a failed pipeline resumes without duplicating the quest, that unreadable uploads are refused, and that the tutor falls back honestly.
+The tests cover:
+- **Answer checking:** validation, units and physics invariants, every sample question, and the template generators across many random seeds.
+- **File handling:** valid and broken uploads.
+- **The learning loop:** adaptive difficulty, lessons, follow-ups, mastery, and answers that can't be counted twice.
+- **The AI pipeline with a mocked model:** wrong keys, unit errors and solver disagreement are rejected; failed runs resume without duplicates; unreadable uploads are refused; and the tutor and report fall back honestly.
+- **Supporting logic:** parallel batching and reading, backup requests, subject and grade detection, and turning maths into speech.
 
-### Evaluation
+## 8. Project structure
 
-[scripts/eval.ts](scripts/eval.ts) runs on [eval/dataset.json](eval/dataset.json), which has four chapter excerpts (Physics ×2, Chemistry, Biology) with expected concepts. Deterministic metrics always run. Gemini metrics (extraction recall, acceptance rate, answer-key rejections, duplicate rate, source grounding, distractor labelling, tutor validity and key-consistency, follow-up relevance) run only with credentials.
-
-Measured on 2026-10-17 in demo mode (no credentials, so the Gemini section was skipped):
-
-| Metric | Result |
+| Path | What's there |
 |---|---|
-| Demo questions passing validation | 14/14 (100%) |
-| Demo numerical answers recomputed | 100% |
-| Template follow-ups generated (720 attempts) | 100% produced, 100% valid |
-| Wrong options with a misconception label | 100% |
-| Exact-duplicate pairs within one generator cell (40 seeds) | 2.3% (sessions also pass an avoid-list, so repeats are filtered in play) |
-| Follow-ups that are near-copies of the missed question | 0% |
+| `src/app/*` | Pages (`/`, `/create`, `/dashboard`, `/quest/[id]`, `/progress`, `/learn/...`) and `/api` routes |
+| `src/lib/services/*` | Business logic: materials pipeline, play, tutor, report, language |
+| `src/lib/ai/*` | Gemini client, prompts, schemas and workflows |
+| `src/lib/validation/*` | Answer-key, unit and physics checks |
+| `src/lib/engine/*` | Mastery, scoring, adaptive difficulty |
+| `src/lib/db/*`, `src/lib/storage/*` | Firestore or local JSON; Cloud Storage or local disk |
+| `src/components/games/*` | Spider Climb and Force Rush (canvas engines + game panels) |
+| `docs/design-system.md` | Design rules |
 
-Gemini quality numbers have **not** been measured yet. Run `npm run eval` with credentials to produce them.
+## 9. Known limitations
 
-## Demo script (≈3 minutes)
-
-1. **Landing:** the hero shows the real quiz UI with the collision question.
-2. **Upload** (with credentials): drop photos of collision notes on `/create`. The four stages report real server state, then the chapter preview shows detected concepts, formulas and anything unreadable.
-3. **Play:** pick a world (e.g. Rocket Launch). Answer a concept question correctly: XP, streak, a new rocket stage, and "Why this question" explains the next difficulty.
-4. **Mistake:** on the elastic collision question, pick "both move at u/2". The tutor names the misconception (*elastic treated as inelastic*), shows the animated before/after diagram with the conservation check and a worked solution.
-5. **Follow-up:** "Try a similar question" gives a new scenario on the same concept; answer it to see "Mistake fixed!", recovery XP and the mastery change.
-6. **Results:** accuracy, mastery by concept, the adaptation timeline, achievements and *Practice Weak Concepts*.
-
-## Known limitations
-
-- The Gemini, Firestore, Cloud Storage and Veo code paths are written against the installed SDKs and covered by mocked tests, but were **not exercised against live Google Cloud** in this environment (no credentials). Run the eval and a test upload after configuring.
-- Veo video generation is off by default and needs a `VEO_MODEL` your project can access.
-- Rate limits and the per-session lock are per instance. Answer idempotency across instances relies on Firestore `create()` with deterministic attempt ids.
-- Only single-answer MCQ is playable. The question schema is a discriminated type, so new types can be added.
-- Template follow-ups exist for physics collision concepts. For other subjects, follow-ups come from Gemini, or from an unplayed question on the same concept.
+- **Speed varies:** Gemini latency varies, so building a quest takes about a minute and occasionally longer.
+- **Partial translation:** learning content follows the language picker, but menus and Force Rush's own panel stay in English, and Arabic isn't laid out right-to-left yet.
+- **No teacher view yet.** Next step: a class-insights dashboard on BigQuery.
+- **Guest accounts only:** progress is tied to the browser's guest cookie.
+- **Not validated with students:** mastery is a practice guide, not a validated assessment score.
